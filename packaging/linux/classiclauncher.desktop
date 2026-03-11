@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=ClassicLauncher
+Comment=ClassicLauncher
+Exec=/opt/classiclauncher/bin/ClassicLauncher %u
+Icon=classiclauncher
+Type=Application
+Categories=Game;
+MimeType=x-scheme-handler/classiclauncher;
+StartupWMClass=ClassicLauncher
+Terminal=false

@@ -1,0 +1,280 @@
+name: Native Build
+
+# Builds platform-native installers (macOS DMG, Windows MSI, Linux DEB/RPM) and a
+# plain runnable fat JAR on every push to a version branch (e.g. v1.0.0), plus on
+# manual dispatch. Automatically creates a GitHub Release with all artifacts attached.
+#
+# Artifacts produced:
+#   jar-jdk8    — plain fat JAR (Java 8 compiled, runs on any JRE 8+)
+#   macos-dmg   — macOS disk image with bundled JRE 24
+#   windows-msi — Windows installer with bundled JRE 24
+#   linux-deb   — Debian package with bundled JRE 24
+#   linux-rpm   — RPM package with bundled JRE 24
+#
+# YMLite and LibraryManager are published to Maven Central with the coordinates in pom.xml.
+# No special CI credentials or private repository setup is required.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+jobs:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Plain runnable fat JAR (Java 8 source, runs on any JRE 8+)
+  # ─────────────────────────────────────────────────────────────────────────────
+  jar-jdk8:
+    name: Fat JAR (JDK 8)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false -q
+
+      - name: Build fat JAR
+        run: mvn package -DskipTests -Dspotless.check.skip=true -q
+
+      # Upload the shaded JAR; exclude original-*.jar which is also in target/
+      - name: Upload fat JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-jdk8
+          path: target/ClassicLauncher-*.jar
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # macOS DMG (JDK 24, bundles JRE 24)
+  # ─────────────────────────────────────────────────────────────────────────────
+  macos:
+    name: macOS DMG (JDK 24)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false -q
+
+      - name: Build fat JAR
+        run: mvn package -DskipTests -Dspotless.check.skip=true -q
+
+      - name: Build macOS DMG
+        run: |
+          mvn package -Pnative \
+            -Djpackage.type=dmg \
+            -Djpackage.resourceDir=packaging/macos \
+            -DskipTests -Dspotless.check.skip=true -q
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: target/installer/*.dmg
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Windows MSI (JDK 24, bundles JRE 24)
+  # ─────────────────────────────────────────────────────────────────────────────
+  windows:
+    name: Windows MSI (JDK 24)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Install WiX Toolset
+        # Install WiX 3.x if not already present on the runner (runners often ship with it).
+        # `choco upgrade` is a no-op when the installed version is already up to date.
+        run: choco upgrade wixtoolset -y --no-progress
+        shell: pwsh
+        continue-on-error: true
+
+      - name: Add WiX to PATH
+        # Resolve the installed WiX directory dynamically so the path is correct regardless
+        # of which 3.x patch version is present on the runner.
+        run: |
+          $wixDir = Get-ChildItem "C:\Program Files (x86)\WiX Toolset*" -ErrorAction SilentlyContinue |
+            Sort-Object Name -Descending | Select-Object -First 1
+          if ($wixDir) {
+            "$($wixDir.FullName)\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+        shell: pwsh
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          mvn versions:set "-DnewVersion=$version" -DgenerateBackupPoms=false -q
+        shell: pwsh
+
+      - name: Build fat JAR
+        run: mvn package -DskipTests -Dspotless.check.skip=true -q
+        shell: bash
+
+      - name: Build Windows MSI
+        run: |
+          mvn package -Pnative \
+            -Djpackage.type=msi \
+            -Djpackage.resourceDir=packaging/windows \
+            -DskipTests -Dspotless.check.skip=true -q
+        shell: bash
+
+      - name: Upload Windows MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: target/installer/*.msi
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Linux DEB + RPM (JDK 24, bundles JRE 24)
+  # Both installers are built in a single job since they share the fat JAR.
+  # ─────────────────────────────────────────────────────────────────────────────
+  linux:
+    name: Linux DEB + RPM (JDK 24)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg rpm
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false -q
+
+      - name: Build fat JAR
+        run: mvn package -DskipTests -Dspotless.check.skip=true -q
+
+      - name: Build Linux DEB
+        run: |
+          mvn package -Pnative \
+            -Djpackage.type=deb \
+            -Djpackage.resourceDir=packaging/linux \
+            -DskipTests -Dspotless.check.skip=true -q
+
+      - name: Build Linux RPM
+        run: |
+          mvn package -Pnative \
+            -Djpackage.type=rpm \
+            -Djpackage.resourceDir=packaging/linux \
+            -DskipTests -Dspotless.check.skip=true -q
+
+      - name: Upload Linux DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: target/installer/*.deb
+          if-no-files-found: error
+
+      - name: Upload Linux RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-rpm
+          path: target/installer/*.rpm
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Publish JAR to ClassicLauncher Repo
+  # ─────────────────────────────────────────────────────────────────────────────
+  publish:
+    name: Publish to ClassicLauncher repo
+    needs: jar-jdk8
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+          server-id: classiclauncher
+          server-username: CLASSICLAUNCHER_USERNAME
+          server-password: CLASSICLAUNCHER_PASSWORD
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false -q
+
+      - name: Deploy to ClassicLauncher repo
+        run: mvn deploy -DskipTests -Dspotless.check.skip=true -q
+        env:
+          CLASSICLAUNCHER_USERNAME: ${{ secrets.CLASSICLAUNCHER_USERNAME }}
+          CLASSICLAUNCHER_PASSWORD: ${{ secrets.CLASSICLAUNCHER_PASSWORD }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Create GitHub Release with all artifacts
+  # ─────────────────────────────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: [jar-jdk8, macos, windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/jar-jdk8/*.jar
+            artifacts/macos-dmg/*.dmg
+            artifacts/windows-msi/*.msi
+            artifacts/linux-deb/*.deb
+            artifacts/linux-rpm/*.rpm

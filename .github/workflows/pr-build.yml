@@ -1,0 +1,27 @@
+name: PR Build Check
+
+# Builds the fat JAR on every pull request targeting main.
+# This job must pass before merging is allowed (enforce via branch protection rules).
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build (JDK 8, Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build
+        run: mvn package -DskipTests -Dspotless.check.skip=true -q

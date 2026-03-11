@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# classiclauncher.postinst — DEB post-install script for ClassicLauncher.
+#
+# jpackage includes this file in the generated DEB package (named after the app,
+# per Debian convention) and runs it after installation completes.
+#
+# Registers the classiclauncher:// URI scheme with the XDG MIME database so that
+# clicking a classiclauncher:// link in a browser opens the launcher automatically.
+#
+set -e
+
+# Register the URI scheme for all users via xdg-mime (desktop-file-based)
+xdg-mime default classiclauncher.desktop x-scheme-handler/classiclauncher || true
+
+# Rebuild the system application database so the desktop entry is discoverable
+update-desktop-database /usr/share/applications || true
+
+# Rebuild the system MIME database
+update-mime-database /usr/share/mime || true

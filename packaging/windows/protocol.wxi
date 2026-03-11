@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX fragment — included by jpackage for MSI builds via --resource-dir.
+
+  Registers the classiclauncher:// URI scheme under HKCU\Software\Classes so that no
+  administrator rights are required. The keys are removed automatically on uninstall.
+
+  Usage:
+    mvn package -Pnative -Djpackage.type=msi -Djpackage.resourceDir=packaging/windows
+
+  NOTE: Replace the Guid value below with a stable UUID specific to your fork.
+        Generate one via: uuidgen (macOS/Linux) or [guid]::NewGuid() (PowerShell).
+        Do NOT change the GUID after shipping your first installer release, or every
+        new version will appear as a fresh installation rather than an upgrade.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <ComponentGroup Id="ProtocolHandlerRegistration" Directory="INSTALLDIR">
+            <Component Id="ProtocolHandlerReg"
+                       Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
+
+                <!-- Root key: marks the scheme as a URL protocol handler -->
+                <RegistryKey Root="HKCU"
+                             Key="Software\Classes\classiclauncher"
+                             Action="createAndRemoveOnUninstall">
+                    <RegistryValue Type="string" Name=""
+                                   Value="URL:ClassicLauncher Protocol"/>
+                    <RegistryValue Type="string" Name="URL Protocol" Value=""/>
+                </RegistryKey>
+
+                <!-- Default icon: the launcher executable's first embedded icon -->
+                <RegistryKey Root="HKCU"
+                             Key="Software\Classes\classiclauncher\DefaultIcon"
+                             Action="createAndRemoveOnUninstall">
+                    <RegistryValue Type="string" Name=""
+                                   Value="[INSTALLDIR]ClassicLauncher.exe,0"/>
+                </RegistryKey>
+
+                <!-- Shell open command: passes the URI as the first argument -->
+                <RegistryKey Root="HKCU"
+                             Key="Software\Classes\classiclauncher\shell\open\command"
+                             Action="createAndRemoveOnUninstall">
+                    <RegistryValue Type="string" Name=""
+                                   Value="&quot;[INSTALLDIR]ClassicLauncher.exe&quot; &quot;%1&quot;"/>
+                </RegistryKey>
+
+            </Component>
+        </ComponentGroup>
+    </Fragment>
+</Wix>
