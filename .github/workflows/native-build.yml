@@ -1,0 +1,184 @@
+name: Native Build
+
+# Builds platform-native installers (macOS DMG, Windows MSI, Linux DEB/RPM) and a
+# plain runnable fat JAR on every push to main, plus on manual dispatch.
+#
+# Artifacts produced:
+#   jar-jdk8    — plain fat JAR (Java 8 compiled, runs on any JRE 8+)
+#   macos-dmg   — macOS disk image with bundled JRE 24
+#   windows-msi — Windows installer with bundled JRE 24
+#   linux-deb   — Debian package with bundled JRE 24
+#   linux-rpm   — RPM package with bundled JRE 24
+#
+# YMLite and LibraryManager are published to Maven Central with the coordinates in pom.xml.
+# No special CI credentials or private repository setup is required.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Plain runnable fat JAR (Java 8 source, runs on any JRE 8+)
+  # ─────────────────────────────────────────────────────────────────────────────
+  jar-jdk8:
+    name: Fat JAR (JDK 8)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build fat JAR
+        run: mvn package -DskipTests -q
+
+      # Upload the shaded JAR; exclude original-*.jar which is also in target/
+      - name: Upload fat JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-jdk8
+          path: target/Launcher-*.jar
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # macOS DMG (JDK 24, bundles JRE 24)
+  # ─────────────────────────────────────────────────────────────────────────────
+  macos:
+    name: macOS DMG (JDK 24)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build fat JAR
+        run: mvn package -DskipTests -q
+
+      - name: Build macOS DMG
+        run: |
+          mvn package -Pnative \
+            -Djpackage.type=dmg \
+            -Djpackage.resourceDir=packaging/macos \
+            -DskipTests -q
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: target/installer/*.dmg
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Windows MSI (JDK 24, bundles JRE 24)
+  # ─────────────────────────────────────────────────────────────────────────────
+  windows:
+    name: Windows MSI (JDK 24)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Install WiX Toolset
+        # WiX 3.x is required for JDK 24's jpackage MSI generation.
+        # Adjust the version if your JDK ships with WiX 4 support.
+        run: choco install wixtoolset --version=3.11.2 -y --no-progress
+        shell: pwsh
+
+      - name: Add WiX to PATH
+        run: echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+
+      - name: Build fat JAR
+        run: mvn package -DskipTests -q
+
+      - name: Build Windows MSI
+        run: |
+          mvn package -Pnative `
+            -Djpackage.type=msi `
+            -Djpackage.resourceDir=packaging/windows `
+            -DskipTests -q
+        shell: pwsh
+
+      - name: Upload Windows MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: target/installer/*.msi
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Linux DEB + RPM (JDK 24, bundles JRE 24)
+  # Both installers are built in a single job since they share the fat JAR.
+  # ─────────────────────────────────────────────────────────────────────────────
+  linux:
+    name: Linux DEB + RPM (JDK 24)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg rpm
+
+      - name: Build fat JAR
+        run: mvn package -DskipTests -q
+
+      - name: Build Linux DEB
+        run: |
+          mvn package -Pnative \
+            -Djpackage.type=deb \
+            -Djpackage.resourceDir=packaging/linux \
+            -DskipTests -q
+
+      - name: Build Linux RPM
+        run: |
+          mvn package -Pnative \
+            -Djpackage.type=rpm \
+            -Djpackage.resourceDir=packaging/linux \
+            -DskipTests -q
+
+      - name: Upload Linux DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: target/installer/*.deb
+          if-no-files-found: error
+
+      - name: Upload Linux RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-rpm
+          path: target/installer/*.rpm
+          if-no-files-found: error

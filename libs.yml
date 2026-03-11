@@ -1,0 +1,23 @@
+# Runtime dependencies downloaded by LibraryManager on first startup.
+#
+# These are deps that are NOT shaded into the launcher JAR itself.
+# The launcher downloads them into <dataDir>/libs/maven/ on first run and
+# adds them to the context classloader before the UI is shown.
+#
+# log4j-core is the ONLY dep here that is truly needed at runtime via this
+# mechanism (log4j-api is shaded; log4j-core is found by log4j-api through
+# its SPI mechanism on the context classloader after this file is loaded).
+#
+# jsvg and Formatter are shaded directly because the launcher's Swing code
+# references them via the system classloader; they cannot safely live here
+# until the launcher is refactored to use a bootstrap-class-loading pattern.
+
+repositories:
+  0:
+    url: https://repo1.maven.org/maven2/
+
+dependencies:
+  0:
+    groupId: org.apache.logging.log4j
+    artifactId: log4j-core
+    version: 2.25.3

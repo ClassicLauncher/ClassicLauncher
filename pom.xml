@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>net.classiclauncher</groupId>
+	<artifactId>ClassicLauncher</artifactId>
+	<version>0.0.1</version>
+
+	<properties>
+		<maven.compiler.source>8</maven.compiler.source>
+		<maven.compiler.target>8</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- Native packaging properties (overridable on the command line) -->
+		<!-- jpackage installer type: dmg | pkg | exe | msi | deb | rpm | app-image -->
+		<jpackage.type>app-image</jpackage.type>
+		<!-- Platform-specific resource directory containing Info.plist / .ico / .desktop etc. -->
+		<jpackage.resourceDir>packaging/macos</jpackage.resourceDir>
+		<!-- App version for installers: must be numeric (e.g. 1.0.0), not 1.0-SNAPSHOT -->
+		<jpackage.appVersion>0.0.1</jpackage.appVersion>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>dev.utano</groupId>
+			<artifactId>Formatter</artifactId>
+			<version>1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>dev.utano</groupId>
+			<artifactId>LibraryManager</artifactId>
+			<version>0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>dev.utano</groupId>
+			<artifactId>YMLite</artifactId>
+			<version>0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>top.wavelength</groupId>
+			<artifactId>Java-BetterReflection</artifactId>
+			<version>1.3.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.42</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.github.weisj</groupId>
+			<artifactId>jsvg</artifactId>
+			<version>1.4.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<version>2.24.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>2.25.3</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- Spotless Formatter -->
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>3.3.0</version>
+				<configuration>
+					<java>
+						<removeUnusedImports/>
+						<importOrder>
+							<order>java,javax,org,com,</order>
+						</importOrder>
+						<eclipse>
+							<file>eclipse-formatter.xml</file>
+						</eclipse>
+						<trimTrailingWhitespace/>
+						<lineEndings>UNIX</lineEndings>
+					</java>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<phase>verify</phase>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Set a compiler level -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.8.1</version>
+				<configuration>
+					<source>8</source>
+					<target>8</target>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+							<version>1.18.42</version>
+						</path>
+					</annotationProcessorPaths>
+					<compilerArgs>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+						<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+					</compilerArgs>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.2.4</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<transformers>
+						<transformer
+							implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+							<mainClass>net.classiclauncher.launcher.Main</mainClass>
+							<manifestEntries>
+								<Implementation-Version>${project.version}</Implementation-Version>
+							</manifestEntries>
+						</transformer>
+					</transformers>
+					<!--
+					  Bootstrap-only shade: only include deps that must be available before
+					  LibraryManager can bootstrap the rest (i.e. before libs.yml is loaded).
+
+					  log4j-api   — shaded because 6 launcher classes declare
+					                `static final Logger LOG = LogManager.getLogger(...)`.
+					                Static field initializers run via the system CL at class-load
+					                time, which cannot reach the CustomURLClassLoader child CL.
+					                log4j-core is intentionally NOT shaded — it is downloaded at
+					                startup via libs.yml and found by log4j-api through its SPI
+					                mechanism on the context classloader.
+
+					  jsvg, Formatter — shaded because launcher code references them directly
+					                in method bodies; method-local class resolution uses the
+					                defining CL (system CL), not the context CL. Moving them to
+					                libs.yml requires a bootstrap-classloader refactor (TODO for
+					                a future slim-launcher milestone).
+					-->
+					<artifactSet>
+						<includes>
+							<!-- Bootstrap classloader deps (must precede libs.yml loading) -->
+							<include>dev.utano:LibraryManager</include>
+							<include>dev.utano:YMLite</include>
+							<include>top.wavelength:Java-BetterReflection</include>
+							<!-- Directly referenced by launcher code via system CL (see above) -->
+							<include>dev.utano:Formatter</include>
+							<include>com.github.weisj:jsvg</include>
+							<include>org.apache.logging.log4j:log4j-api</include>
+							<!-- log4j-core is in libs.yml — NOT shaded here -->
+						</includes>
+					</artifactSet>
+					<filters>
+						<filter>
+							<!-- General exclusions -->
+							<artifact>*:*</artifact>
+							<excludes>
+								<exclude>META-INF/**</exclude>
+								<exclude>**/*.txt</exclude>
+								<exclude>**/*.pdf</exclude>
+								<exclude>**/*.html</exclude>
+								<exclude>**/AUTHORS</exclude>
+								<exclude>**/LICENSE</exclude>
+							</excludes>
+						</filter>
+					</filters>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+
+	<profiles>
+		<!--
+		  Native packaging profile — builds a platform-native installer via jpackage.
+
+		  Usage:
+			macOS DMG : mvn package -Pnative -Djpackage.type=dmg  -Djpackage.resourceDir=packaging/macos
+			Windows MSI: mvn package -Pnative -Djpackage.type=msi  -Djpackage.resourceDir=packaging/windows
+			Linux DEB  : mvn package -Pnative -Djpackage.type=deb  -Djpackage.resourceDir=packaging/linux
+			Linux RPM  : mvn package -Pnative -Djpackage.type=rpm  -Djpackage.resourceDir=packaging/linux
+
+		  The profile expects the fat JAR to be present in ${project.build.directory} — run
+		  `mvn package` (without -Pnative) first, or invoke both in a single command since shade
+		  is declared before the exec plugin and thus runs first within the package phase.
+
+		  Requires JDK 14+ (jpackage) on the PATH / JAVA_HOME. For MSI builds, WiX 3.x must be
+		  installed on Windows. For DEB builds, fakeroot and dpkg must be installed on Linux.
+		  For RPM builds, rpm-build must be installed on Linux.
+		-->
+		<profile>
+			<id>native</id>
+			<build>
+				<plugins>
+					<!--
+					  Step 1: Copy the fat JAR to a clean staging directory so jpackage bundles
+					  only the shaded artifact and not the original-*.jar or other build outputs.
+					-->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>3.1.0</version>
+						<executions>
+							<execution>
+								<id>stage-fat-jar</id>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<mkdir dir="${project.build.directory}/jpackage-input"/>
+										<!-- Slim launcher JAR (bootstrap + directly-referenced deps) -->
+										<copy file="${project.build.directory}/${project.build.finalName}.jar"
+											  todir="${project.build.directory}/jpackage-input"
+											  overwrite="true"/>
+										<!-- libs.yml is bundled next to the JAR so the app can find
+										     it at startup when downloading runtime dependencies. -->
+										<copy file="${project.basedir}/libs.yml"
+											  todir="${project.build.directory}/jpackage-input"
+											  overwrite="true"/>
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+
+					<!--
+					  Step 2: Invoke jpackage to produce the native installer.
+					  Bound to the package phase; runs after shade (declared first) and after the
+					  antrun staging step (declared immediately above).
+					-->
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>3.6.3</version>
+						<executions>
+							<execution>
+								<id>jpackage</id>
+								<phase>package</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<executable>${java.home}/bin/jpackage</executable>
+									<arguments>
+										<argument>--name</argument>
+										<argument>ClassicLauncher</argument>
+										<argument>--app-version</argument>
+										<argument>${jpackage.appVersion}</argument>
+										<argument>--vendor</argument>
+										<argument>ClassicLauncher</argument>
+										<argument>--input</argument>
+										<argument>${project.build.directory}/jpackage-input</argument>
+										<argument>--main-jar</argument>
+										<argument>${project.build.finalName}.jar</argument>
+										<argument>--main-class</argument>
+										<argument>net.classiclauncher.launcher.Main</argument>
+										<argument>--dest</argument>
+										<argument>${project.build.directory}/installer</argument>
+										<argument>--java-options</argument>
+										<argument>-Xmx512m</argument>
+										<argument>--type</argument>
+										<argument>${jpackage.type}</argument>
+										<argument>--resource-dir</argument>
+										<argument>${project.basedir}/${jpackage.resourceDir}</argument>
+									</arguments>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+</project>

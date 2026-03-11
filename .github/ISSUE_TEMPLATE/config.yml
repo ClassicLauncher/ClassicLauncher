@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discord (User Support)
+    url: https://discord.classiclauncher.net
+    about: Get help with installing or using ClassicLauncher
+  - name: GitHub Discussions (Developer Questions)
+    url: https://github.com/ClassicLauncher/ClassicLauncher/discussions
+    about: Questions about forking, extensions, or the API
