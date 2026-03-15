@@ -12,6 +12,11 @@ public class Profile {
 	private final String name;
 
 	/**
+	 * The game this profile belongs to. Null = shown for all games (legacy profiles).
+	 */
+	private final String gameId;
+
+	/**
 	 * The version ID to use when launching. Resolved via Api. Null = use latest.
 	 */
 	private final String versionId;
@@ -73,6 +78,7 @@ public class Profile {
 
 	public void save(YmlConfig config) {
 		config.set("name", name);
+		config.set("game-id", gameId != null ? gameId : "");
 		config.set("version", versionId != null ? versionId : "");
 		config.set("account", accountId != null ? accountId : "");
 		config.set("game-directory", gameDirectory != null ? gameDirectory : "");
@@ -90,6 +96,7 @@ public class Profile {
 	}
 
 	public static Profile fromConfig(String id, YmlConfig config) {
+		String rawGameId = config.getString("game-id", "");
 		String rawVersion = config.getString("version", "");
 		String rawAccount = config.getString("account", "");
 		String rawGameDir = config.getString("game-directory", "");
@@ -122,7 +129,8 @@ public class Profile {
 		}
 
 		return Profile.builder().id(id).name(config.getString("name", "Default"))
-				.versionId(rawVersion.isEmpty() ? null : rawVersion).accountId(rawAccount.isEmpty() ? null : rawAccount)
+				.gameId(rawGameId.isEmpty() ? null : rawGameId).versionId(rawVersion.isEmpty() ? null : rawVersion)
+				.accountId(rawAccount.isEmpty() ? null : rawAccount)
 				.gameDirectory(rawGameDir.isEmpty() ? null : rawGameDir).resolutionWidth(resWidth)
 				.resolutionHeight(resHeight)
 				.autoCrashReport(!"false".equalsIgnoreCase(config.getString("auto-crash-report", "true")))

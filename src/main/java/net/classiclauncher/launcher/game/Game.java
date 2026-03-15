@@ -183,7 +183,9 @@ public final class Game {
 	/**
 	 * Resolves the {@code Game} for the currently selected account:
 	 * <ol>
-	 * <li>Selected account's {@link AccountProvider#getGame()} if non-null.</li>
+	 * <li>If the {@link LauncherContext#getDefaultGame() default game} is supported by the account's provider, return
+	 * it. This respects the user's explicit game selection in the login screen.</li>
+	 * <li>Otherwise, the account's {@link AccountProvider#getPrimaryGame()} if non-null.</li>
 	 * <li>{@link LauncherContext#getDefaultGame()} if set.</li>
 	 * <li>{@code null} if no game is configured (all Profile Editor sections are shown).</li>
 	 * </ol>
@@ -196,8 +198,15 @@ public final class Game {
 				Optional<Account> acc = settings.getAccounts().getById(accountId);
 				if (acc.isPresent()) {
 					Optional<AccountProvider> prov = settings.getAccounts().getProvider(acc.get().getType());
-					if (prov.isPresent() && prov.get().getPrimaryGame() != null) {
-						return prov.get().getPrimaryGame();
+					if (prov.isPresent()) {
+						// Prefer the default game if the provider supports it
+						Game defaultGame = LauncherContext.getInstance().getDefaultGame();
+						if (defaultGame != null && prov.get().getGames().contains(defaultGame)) {
+							return defaultGame;
+						}
+						if (prov.get().getPrimaryGame() != null) {
+							return prov.get().getPrimaryGame();
+						}
 					}
 				}
 			}

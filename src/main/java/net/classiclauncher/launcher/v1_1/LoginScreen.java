@@ -10,6 +10,7 @@ import java.util.UUID;
 import javax.swing.*;
 
 import dev.utano.formatter.DefaultFormatter;
+import net.classiclauncher.launcher.LauncherContext;
 import net.classiclauncher.launcher.account.Account;
 import net.classiclauncher.launcher.account.AccountProvider;
 import net.classiclauncher.launcher.account.Accounts;
@@ -99,8 +100,8 @@ public class LoginScreen extends BackgroundPanel {
 	}
 
 	/**
-	 * Resolves the initial provider from the currently selected account. Falls back to the first registered provider if
-	 * no account is selected or the provider is not found.
+	 * Resolves the initial provider from the currently selected account. Falls back to the provider that owns the
+	 * launcher's default game, then to any provider with games, and finally to the first registered provider.
 	 */
 	private AccountProvider resolveInitialProvider() {
 		String selectedId = accountSettings.getSelectedAccountId();
@@ -113,13 +114,37 @@ public class LoginScreen extends BackgroundPanel {
 				}
 			}
 		}
+
+		// Prefer the provider that owns the launcher's default game
+		Game defaultGame = LauncherContext.getInstance().getDefaultGame();
+		if (defaultGame != null) {
+			for (AccountProvider p : allProviders) {
+				if (p.getGames().contains(defaultGame)) {
+					return p;
+				}
+			}
+		}
+
+		// Fall back to any provider that has games
+		for (AccountProvider p : allProviders) {
+			if (!p.getGames().isEmpty()) {
+				return p;
+			}
+		}
+
 		return allProviders.isEmpty() ? null : allProviders.get(0);
 	}
 
 	private Game resolveCurrentGame() {
 		Game game = gameLogo.getSelectedGame();
 		if (game == null && selectedProvider != null && !selectedProvider.getGames().isEmpty()) {
-			game = selectedProvider.getGames().get(0);
+			// Prefer the user's default game if this provider supports it
+			Game defaultGame = LauncherContext.getInstance().getDefaultGame();
+			if (defaultGame != null && selectedProvider.getGames().contains(defaultGame)) {
+				game = defaultGame;
+			} else {
+				game = selectedProvider.getGames().get(0);
+			}
 		}
 		return game;
 	}
@@ -283,7 +308,26 @@ public class LoginScreen extends BackgroundPanel {
 			Account selected = (Account) existingAccountsCombo.getSelectedItem();
 			if (selected == null) return;
 			accountSettings.setSelectedAccountId(selected.getId());
-			onLoginComplete.run();
+			AccountProvider provider = accounts.getProvider(selected.getType()).orElse(null);
+			if (provider != null && provider.getGames().size() > 1) {
+				// Skip chooser if a game is already selected and this provider supports it
+				Game defaultGame = LauncherContext.getInstance().getDefaultGame();
+				if (defaultGame != null && provider.getGames().contains(defaultGame)) {
+					onLoginComplete.run();
+				} else {
+					GameSelectorWidget.chooseGame(this, provider, game -> {
+						if (game != null) {
+							LauncherContext.getInstance().setDefaultGame(game);
+						}
+						onLoginComplete.run();
+					});
+				}
+			} else {
+				if (provider != null && !provider.getGames().isEmpty()) {
+					LauncherContext.getInstance().setDefaultGame(provider.getGames().get(0));
+				}
+				onLoginComplete.run();
+			}
 		});
 
 		int loggedInAccounts = existingAccounts.size();
@@ -378,17 +422,51 @@ public class LoginScreen extends BackgroundPanel {
 	private void finishLogin(Account account) {
 		accounts.add(account);
 		accountSettings.setSelectedAccountId(account.getId());
-		createDefaultProfileIfNeeded(account);
-		onLoginComplete.run();
+		promptGameThenComplete(account);
 	}
 
 	/**
-	 * Creates a default profile named after the account if no profiles exist yet. This gives first-time users a
-	 * playable configuration without requiring manual setup.
+	 * If the provider for this account supports more than one game, opens a game chooser before proceeding. Otherwise
+	 * proceeds immediately with the provider's sole game (or the launcher default).
 	 */
-	private void createDefaultProfileIfNeeded(Account account) {
-		if (!profiles.getAll().isEmpty()) return;
-		Profile profile = Profile.builder().id(UUID.randomUUID().toString()).name(account.getDisplayName())
+	private void promptGameThenComplete(Account account) {
+		AccountProvider provider = accounts.getProvider(account.getType()).orElse(selectedProvider);
+		if (provider != null && provider.getGames().size() > 1) {
+			// Skip chooser if a game is already selected and this provider supports it
+			Game defaultGame = LauncherContext.getInstance().getDefaultGame();
+			if (defaultGame != null && provider.getGames().contains(defaultGame)) {
+				createDefaultProfileIfNeeded(account, defaultGame);
+				onLoginComplete.run();
+			} else {
+				GameSelectorWidget.chooseGame(this, provider, game -> {
+					if (game != null) {
+						LauncherContext.getInstance().setDefaultGame(game);
+					}
+					createDefaultProfileIfNeeded(account, game);
+					onLoginComplete.run();
+				});
+			}
+		} else {
+			Game game = resolveCurrentGame();
+			if (game != null) {
+				LauncherContext.getInstance().setDefaultGame(game);
+			}
+			createDefaultProfileIfNeeded(account, game);
+			onLoginComplete.run();
+		}
+	}
+
+	/**
+	 * Creates a default profile named after the account if no profiles exist yet for this game. This gives first-time
+	 * users a playable configuration without requiring manual setup.
+	 */
+	private void createDefaultProfileIfNeeded(Account account, Game game) {
+		String gid = game != null ? game.getGameId() : null;
+		// Check if a profile already exists for this game
+		for (Profile p : profiles.getAll()) {
+			if (gid == null || gid.equals(p.getGameId())) return;
+		}
+		Profile profile = Profile.builder().id(UUID.randomUUID().toString()).name(account.getDisplayName()).gameId(gid)
 				.versionId(null).accountId(account.getId()).autoCrashReport(true)
 				.launcherVisibility(LauncherVisibility.CLOSE_LAUNCHER).enableSnapshots(false).enableBetaVersions(false)
 				.enableAlphaVersions(false).build();

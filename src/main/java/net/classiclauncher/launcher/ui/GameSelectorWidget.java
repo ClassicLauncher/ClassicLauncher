@@ -143,7 +143,17 @@ public class GameSelectorWidget extends JPanel {
 	 */
 	public void setActiveProvider(AccountProvider provider) {
 		this.activeProvider = provider;
-		this.selectedGame = null; // reset; resolveActiveGame() will use provider's primary game
+		// Preserve the user's game selection if the new provider supports it;
+		// otherwise fall back to the default game if supported, then null.
+		if (selectedGame != null && provider != null && !provider.getGames().contains(selectedGame)) {
+			selectedGame = null;
+		}
+		if (selectedGame == null && provider != null) {
+			Game defaultGame = LauncherContext.getInstance().getDefaultGame();
+			if (defaultGame != null && provider.getGames().contains(defaultGame)) {
+				selectedGame = defaultGame;
+			}
+		}
 		repaint();
 	}
 
@@ -525,6 +535,9 @@ public class GameSelectorWidget extends JPanel {
 	private void fireSelected(AccountProvider provider, Game game) {
 		activeProvider = provider;
 		selectedGame = game;
+		if (game != null) {
+			LauncherContext.getInstance().setDefaultGame(game);
+		}
 		repaint();
 		updateWindowTitle(game);
 		onSelected.accept(provider, game);
@@ -538,6 +551,83 @@ public class GameSelectorWidget extends JPanel {
 		if (w instanceof Frame) {
 			((Frame) w).setTitle(game != null ? game.getDisplayName() + " Launcher" : "Launcher");
 		}
+	}
+
+	// ── Programmatic game chooser ────────────────────────────────────────────
+
+	/**
+	 * Opens a modal game-chooser dialog for the given provider. Blocks until the user picks a game, then invokes
+	 * {@code onChosen}. If the provider has only one game (or zero), the callback is fired immediately with no dialog.
+	 *
+	 * <p>
+	 * This is intended for use from {@code LoginScreen} when a provider has multiple games: after login or when playing
+	 * with an existing account, the user must pick which game to launch.
+	 *
+	 * @param parent
+	 *            the parent component for dialog positioning
+	 * @param provider
+	 *            the account provider whose games to choose from
+	 * @param onChosen
+	 *            callback invoked on the EDT with the selected game
+	 */
+	public static void chooseGame(Component parent, AccountProvider provider,
+			java.util.function.Consumer<Game> onChosen) {
+		List<Game> games = provider.getGames();
+		if (games.size() <= 1) {
+			onChosen.accept(games.isEmpty() ? null : games.get(0));
+			return;
+		}
+
+		Window ancestor = SwingUtilities.getWindowAncestor(parent);
+		Frame frame = (ancestor instanceof Frame) ? (Frame) ancestor : null;
+		JDialog dialog = new JDialog(frame, "Select Game", true);
+		dialog.setLayout(new BorderLayout());
+		dialog.setUndecorated(true);
+
+		JPanel panel = new JPanel(new BorderLayout(0, 0));
+		panel.setBackground(Color.WHITE);
+		panel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0xCCCCCC), 1),
+				BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+
+		JLabel title = new JLabel("Select a game:");
+		title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
+		title.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+		panel.add(title, BorderLayout.NORTH);
+
+		CardGrid<Game> grid = new CardGrid<>(CARD_WIDTH, CARD_HEIGHT, ICON_SIZE, CARD_GAP,
+				new CardGrid.CardItemRenderer<Game>() {
+
+					@Override
+					public Icon getIcon(Game game) {
+						String iconPath = ResourceLoader.resolveGameIconPath(game.getGameId(), provider.getTypeId(),
+								currentStyle());
+						if (iconPath == null) {
+							iconPath = ResourceLoader.resolveGameIconPath(game.getGameId(), currentStyle());
+						}
+						return ResourceLoader.loadIcon(iconPath, ICON_SIZE, ICON_SIZE);
+					}
+
+					@Override
+					public String getTitle(Game game) {
+						return Optional.ofNullable(game.getDisplayName()).orElse(game.getGameId());
+					}
+
+					@Override
+					public String getSubtitle(Game game) {
+						return null;
+					}
+
+				}, game -> {
+					dialog.dispose();
+					onChosen.accept(game);
+				});
+		grid.setItems(games);
+		panel.add(grid, BorderLayout.CENTER);
+
+		dialog.setContentPane(panel);
+		dialog.pack();
+		dialog.setLocationRelativeTo(parent);
+		dialog.setVisible(true);
 	}
 
 	// ── Grid builders ─────────────────────────────────────────────────────────

@@ -243,9 +243,7 @@ public class ProfileEditorDialog extends JDialog {
 				TitledBorder.LEFT, TitledBorder.TOP));
 
 		// Determine which filters to show
-		activeFilters = (game != null && !game.getVersionFilters().isEmpty())
-				? game.getVersionFilters()
-				: DEFAULT_VERSION_FILTERS;
+		activeFilters = (game == null) ? DEFAULT_VERSION_FILTERS : game.getVersionFilters();
 		filterCheckboxes = new ArrayList<>();
 
 		GridBagConstraints gbc = defaultGbc();
@@ -418,25 +416,27 @@ public class ProfileEditorDialog extends JDialog {
 			filterCheckboxes.get(i).setSelected(profileFilterValues[i]);
 		}
 
-		// Java executable combo
-		String exe = profile.getJavaExecutable();
-		if (exe == null) {
-			executableCombo.setSelectedItem(EXEC_SYSTEM_DEFAULT);
-		} else {
-			boolean matched = false;
-			for (int i = 0; i < executableCombo.getItemCount(); i++) {
-				Object item = executableCombo.getItemAt(i);
-				if (item instanceof JavaInstallation
-						&& ((JavaInstallation) item).getExecutablePath().equalsIgnoreCase(exe)) {
-					executableCombo.setSelectedIndex(i);
-					matched = true;
-					break;
+		// Java executable combo (only present for JAR-type games)
+		if (executableCombo != null) {
+			String exe = profile.getJavaExecutable();
+			if (exe == null) {
+				executableCombo.setSelectedItem(EXEC_SYSTEM_DEFAULT);
+			} else {
+				boolean matched = false;
+				for (int i = 0; i < executableCombo.getItemCount(); i++) {
+					Object item = executableCombo.getItemAt(i);
+					if (item instanceof JavaInstallation
+							&& ((JavaInstallation) item).getExecutablePath().equalsIgnoreCase(exe)) {
+						executableCombo.setSelectedIndex(i);
+						matched = true;
+						break;
+					}
 				}
-			}
-			if (!matched) {
-				executableCombo.setSelectedItem(EXEC_CUSTOM);
-				executableField.setText(exe);
-				customExePanel.setVisible(true);
+				if (!matched) {
+					executableCombo.setSelectedItem(EXEC_CUSTOM);
+					executableField.setText(exe);
+					customExePanel.setVisible(true);
+				}
 			}
 		}
 
@@ -544,11 +544,15 @@ public class ProfileEditorDialog extends JDialog {
 		boolean autoCrash = autoCrashCheck == null || autoCrashCheck.isSelected();
 		String profileId = (existingProfile != null) ? existingProfile.getId() : UUID.randomUUID().toString();
 		String accountId = (existingProfile != null) ? existingProfile.getAccountId() : null;
+		String gameId = (existingProfile != null)
+				? existingProfile.getGameId()
+				: (game != null ? game.getGameId() : null);
 
-		Profile built = Profile.builder().id(profileId).name(name).versionId(versionId).accountId(accountId)
-				.gameDirectory(gameDir).resolutionWidth(resWidth).resolutionHeight(resHeight).autoCrashReport(autoCrash)
-				.launcherVisibility(visibility).enableSnapshots(snap).enableBetaVersions(beta)
-				.enableAlphaVersions(alpha).javaExecutable(javaExe).jvmArguments(jvmArgs).build();
+		Profile built = Profile.builder().id(profileId).name(name).gameId(gameId).versionId(versionId)
+				.accountId(accountId).gameDirectory(gameDir).resolutionWidth(resWidth).resolutionHeight(resHeight)
+				.autoCrashReport(autoCrash).launcherVisibility(visibility).enableSnapshots(snap)
+				.enableBetaVersions(beta).enableAlphaVersions(alpha).javaExecutable(javaExe).jvmArguments(jvmArgs)
+				.build();
 
 		Profiles profiles = Settings.getInstance().getProfiles();
 		if (existingProfile == null) {
