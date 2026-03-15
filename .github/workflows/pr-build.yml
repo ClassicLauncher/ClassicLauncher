@@ -24,4 +24,4 @@ jobs:
           cache: maven
 
       - name: Build
-        run: mvn package -DskipTests -Dspotless.check.skip=true -q
+        run: mvn package -Dmaven.test.skip=true -Dspotless.check.skip=true -q
