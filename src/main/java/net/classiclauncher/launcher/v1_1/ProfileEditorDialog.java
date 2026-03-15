@@ -103,7 +103,7 @@ public class ProfileEditorDialog extends JDialog {
 		this.game = Game.resolve();
 
 		setLayout(new BorderLayout());
-		setMinimumSize(new Dimension(560, 500));
+		setMinimumSize(new Dimension(560, 0));
 
 		if (game != null) {
 			Optional<AccountProvider> provider = resolveProvider();
@@ -141,17 +141,38 @@ public class ProfileEditorDialog extends JDialog {
 		boolean showVersionSection = game == null || game.isVersionSelectionEnabled();
 		boolean showJavaSection = game == null || game.getExecutableType() == ExecutableType.JAR;
 
-		form.add(buildProfileInfoSection(showGameDir, showResolution, showAutoCrash));
+		form.add(constrainHeight(buildProfileInfoSection(showGameDir, showResolution, showAutoCrash)));
 		if (showVersionSection) {
 			form.add(Box.createVerticalStrut(8));
-			form.add(buildVersionSection());
+			form.add(constrainHeight(buildVersionSection()));
 		}
 		if (showJavaSection) {
 			form.add(Box.createVerticalStrut(8));
-			form.add(buildJavaSection());
+			form.add(constrainHeight(buildJavaSection()));
 		}
 
+		form.add(Box.createVerticalGlue());
+
 		return form;
+	}
+
+	/**
+	 * Constrains a section panel so that {@link BoxLayout} does not stretch it beyond its preferred height. The max
+	 * height is recalculated on every layout pass so that dynamically shown/hidden children (e.g. the custom executable
+	 * field) are accounted for.
+	 */
+	private static JPanel constrainHeight(JPanel section) {
+		JPanel wrapper = new JPanel(new BorderLayout()) {
+
+			@Override
+			public Dimension getMaximumSize() {
+				return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+			}
+
+		};
+		wrapper.setOpaque(false);
+		wrapper.add(section, BorderLayout.NORTH);
+		return wrapper;
 	}
 
 	private JPanel buildProfileInfoSection(boolean showGameDir, boolean showResolution, boolean showAutoCrash) {
