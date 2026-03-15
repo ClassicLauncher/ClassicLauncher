@@ -58,7 +58,7 @@ public class LauncherContext {
 	 * Returns the current context, initializing with the default name "launcher" if needed.
 	 */
 	public static LauncherContext getInstance() {
-		if (instance == null) instance = new LauncherContext("launcher");
+		if (instance == null) instance = new LauncherContext("classiclauncher");
 		return instance;
 	}
 
