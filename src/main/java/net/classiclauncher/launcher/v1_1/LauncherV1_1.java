@@ -8,7 +8,6 @@ import javax.swing.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import net.classiclauncher.launcher.LauncherContext;
 import net.classiclauncher.launcher.account.Account;
 import net.classiclauncher.launcher.account.AccountProvider;
 import net.classiclauncher.launcher.game.Game;
@@ -98,9 +97,9 @@ public class LauncherV1_1 {
 		if (!optProvider.isPresent()) return;
 
 		AccountProvider provider = optProvider.get();
-		Game game = provider.getPrimaryGame();
+		Game game = Game.resolve();
 		if (game == null) {
-			game = LauncherContext.getInstance().getDefaultGame();
+			game = provider.getPrimaryGame();
 		}
 		provider.onGameSelected(game, LauncherStyle.V1_1);
 	}

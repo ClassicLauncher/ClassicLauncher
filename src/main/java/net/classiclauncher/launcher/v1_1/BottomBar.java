@@ -185,7 +185,14 @@ public class BottomBar extends JPanel {
 	public void refreshProfiles() {
 		suppressProfileComboEvents = true;
 		profileList.clear();
-		profileList.addAll(Settings.getInstance().getProfiles().getAll());
+		Game resolvedGame = Game.resolve();
+		String activeGameId = resolvedGame != null ? resolvedGame.getGameId() : null;
+		for (Profile p : Settings.getInstance().getProfiles().getAll()) {
+			// Show profile if it has no gameId (legacy) or if it matches the active game
+			if (p.getGameId() == null || p.getGameId().equals(activeGameId)) {
+				profileList.add(p);
+			}
+		}
 		profileCombo.removeAllItems();
 		for (Profile p : profileList) {
 			profileCombo.addItem(p.getName());
