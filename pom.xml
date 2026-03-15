@@ -11,6 +11,8 @@
 	<properties>
 		<maven.compiler.source>8</maven.compiler.source>
 		<maven.compiler.target>8</maven.compiler.target>
+		<maven.compiler.testSource>11</maven.compiler.testSource>
+		<maven.compiler.testTarget>11</maven.compiler.testTarget>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<!-- Native packaging properties (overridable on the command line) -->
 		<!-- jpackage installer type: dmg | pkg | exe | msi | deb | rpm | app-image -->
@@ -75,6 +77,18 @@
 			<artifactId>log4j-core</artifactId>
 			<version>2.25.3</version>
 		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>5.13.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>5.23.0</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -90,6 +104,19 @@
 		</resources>
 
 		<plugins>
+			<!-- Surefire — JUnit 5 runner with inline mock-maker JVM args -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.5</version>
+				<configuration>
+					<argLine>
+						--add-opens java.base/java.lang=ALL-UNNAMED
+						-Djdk.attach.allowAttachSelf=true
+						-Dnet.bytebuddy.experimental=true
+					</argLine>
+				</configuration>
+			</plugin>
 			<!-- Spotless Formatter -->
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
