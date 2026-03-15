@@ -14,6 +14,9 @@
 		<maven.compiler.testSource>8</maven.compiler.testSource>
 		<maven.compiler.testTarget>8</maven.compiler.testTarget>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- GitHub repository for the auto-update system (owner/name format). -->
+		<!-- Forks should update this to point to their own repository. -->
+		<github.repo>ClassicLauncher/ClassicLauncher</github.repo>
 		<!-- Native packaging properties (overridable on the command line) -->
 		<!-- jpackage installer type: dmg | pkg | exe | msi | deb | rpm | app-image -->
 		<jpackage.type>app-image</jpackage.type>
@@ -88,6 +91,11 @@
 			<artifactId>mockito-core</artifactId>
 			<version>5.23.0</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark</artifactId>
+			<version>0.21.0</version>
 		</dependency>
 	</dependencies>
 

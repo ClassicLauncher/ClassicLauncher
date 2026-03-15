@@ -274,7 +274,45 @@ See [`jre-management.md`](jre-management.md) for advanced usage.
 
 ---
 
-## Step 10 — Set the JAR manifest entry point
+## Step 10 — Configure the auto-update system
+
+The launcher can check GitHub Releases for newer versions on startup and present a changelog
+dialog. To point it at your own repository, open `pom.xml` and set the `github.repo` property:
+
+```xml
+<properties>
+    <github.repo>your-org/your-launcher</github.repo>
+</properties>
+```
+
+This value is filtered into `launcher-version.properties` at build time and read by
+`LauncherVersion.GITHUB_REPO` at runtime. Releases must follow semantic versioning
+(`v1.2.3`) and must not be marked as drafts or pre-releases to be picked up.
+
+**Disabling the update checker entirely** — if your fork does not publish GitHub releases, set
+`update.check-enabled` to `false` as the default in `LauncherSettings.java`:
+
+```java
+config.addDefault("update.check-enabled", false);
+```
+
+Users can also toggle it from **Settings → Updates** without rebuilding.
+
+**Asset naming convention** — `ArtifactSelector` picks the right download based on the file
+extension. Name your release assets accordingly:
+
+| Platform + mode        | Expected extension |
+|------------------------|--------------------|
+| Any platform (JAR)     | `.jar`             |
+| macOS (installer)      | `.dmg`             |
+| Windows (installer)    | `.msi`             |
+| Linux (installer)      | `.deb` (preferred) or `.rpm` |
+
+See [`auto-update.md`](auto-update.md) for architecture details, visual testing, and settings keys.
+
+---
+
+## Step 11 — Set the JAR manifest entry point
 
 In `pom.xml`, add a `mainClass` to the shade plugin's manifest configuration:
 
@@ -292,7 +330,7 @@ In `pom.xml`, add a `mainClass` to the shade plugin's manifest configuration:
 
 ---
 
-## Step 11 — Build and distribute
+## Step 12 — Build and distribute
 
 ```bash
 mvn package

@@ -1,0 +1,46 @@
+name: Unit Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  extension-tests:
+    name: Extension Tests (JDK 21, Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+      - name: Run extension tests
+        run: mvn test -Dspotless.check.skip=true -Dtest="ExtensionManifestTest,ExtensionRecordTest,ExtensionsTest"
+      - name: Upload Surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-extension
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+
+  updater-tests:
+    name: Updater Tests (JDK 21, Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+      - name: Run updater tests
+        run: mvn test -Dspotless.check.skip=true -Dtest="UpdateCheckerTest,ArtifactSelectorTest,GitHubJsonParserTest,GitHubReleaseSourceTest,ReleaseSourceRegistryTest"
+      - name: Upload Surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-updater
+          path: target/surefire-reports/
+          if-no-files-found: ignore

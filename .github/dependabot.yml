@@ -5,6 +5,11 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    ignore:
+      # commonmark-java 0.21.0 is pinned at the last Java 8-compatible release.
+      # 0.22.0+ targets Java 11 bytecode (class file major version 55) which is
+      # incompatible with the project's Java 8 compiler target.
+      - dependency-name: "org.commonmark:commonmark"
     groups:
       all-dependencies:
         patterns:

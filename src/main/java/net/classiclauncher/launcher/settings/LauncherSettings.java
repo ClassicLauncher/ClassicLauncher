@@ -12,6 +12,8 @@ public class LauncherSettings {
 		config.addDefault("ui.style", LauncherStyle.V1_1.name());
 		config.addDefault("update-notes.url", "");
 		config.addDefault("selected-profile", "");
+		config.addDefault("update.check-enabled", true);
+		config.addDefault("update.skipped-version", "");
 		config.generateConfigs();
 	}
 
@@ -45,6 +47,30 @@ public class LauncherSettings {
 
 	public void setSelectedProfileId(String id) {
 		config.set("selected-profile", id != null ? id : "");
+		config.save();
+	}
+
+	/** Returns {@code true} if automatic update checks on startup are enabled (default: {@code true}). */
+	public boolean isUpdateCheckEnabled() {
+		return config.getBoolean("update.check-enabled", true);
+	}
+
+	public void setUpdateCheckEnabled(boolean enabled) {
+		config.set("update.check-enabled", enabled);
+		config.save();
+	}
+
+	/**
+	 * Returns the version the user asked to skip, or {@code null} if no version has been skipped. An empty string in
+	 * the config is normalised to {@code null}.
+	 */
+	public String getSkippedVersion() {
+		String v = config.getString("update.skipped-version", "");
+		return (v == null || v.isEmpty()) ? null : v;
+	}
+
+	public void setSkippedVersion(String version) {
+		config.set("update.skipped-version", version != null ? version : "");
 		config.save();
 	}
 

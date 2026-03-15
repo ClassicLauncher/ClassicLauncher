@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import dev.utano.ymlite.config.YmlConfig;
 import net.classiclauncher.launcher.LauncherContext;
+import net.classiclauncher.launcher.update.install.DistributionMode;
 
 /**
  * Manages the list of known Java runtime installations.
@@ -125,15 +126,16 @@ public class JavaManager {
 	}
 
 	/**
-	 * Returns the jpackage-bundled JRE when the launcher is running from a jpackage native installer (i.e. the
-	 * {@code jpackage.app-path} system property is set), or {@code null} otherwise.
+	 * Returns the jpackage-bundled JRE when the launcher is running from a jpackage native installer, or {@code null}
+	 * otherwise.
 	 *
 	 * <p>
-	 * The executable path is derived from {@code java.home} — which points to the bundled JRE — and the version is read
-	 * directly from {@code java.version} without spawning a subprocess.
+	 * Detection is delegated to {@link DistributionMode#current()} — the single canonical location for the
+	 * {@code jpackage.app-path} check. The executable path is derived from {@code java.home} and the version from
+	 * {@code java.version} without spawning a subprocess.
 	 */
 	private static JavaInstallation detectBundledInstallation() {
-		if (System.getProperty("jpackage.app-path") == null) return null;
+		if (DistributionMode.current() == DistributionMode.JAR) return null;
 		String javaHome = System.getProperty("java.home", "");
 		if (javaHome.isEmpty()) return null;
 		boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("windows");
