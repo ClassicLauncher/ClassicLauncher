@@ -21,7 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      reactions: write
     outputs:
       head-sha: ${{ steps.pr.outputs.head-sha }}
       head-ref: ${{ steps.pr.outputs.head-ref }}
