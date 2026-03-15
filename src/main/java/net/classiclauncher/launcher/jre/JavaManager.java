@@ -8,7 +8,7 @@ import java.util.Optional;
 
 import dev.utano.ymlite.config.YmlConfig;
 import net.classiclauncher.launcher.LauncherContext;
-import net.classiclauncher.launcher.update.DistributionMode;
+import net.classiclauncher.launcher.update.install.DistributionMode;
 
 /**
  * Manages the list of known Java runtime installations.

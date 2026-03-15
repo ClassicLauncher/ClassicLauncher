@@ -1,8 +1,10 @@
-package net.classiclauncher.launcher.update;
+package net.classiclauncher.launcher.update.install;
 
 import java.util.Optional;
 
 import net.classiclauncher.launcher.platform.Platform;
+import net.classiclauncher.launcher.update.AssetInfo;
+import net.classiclauncher.launcher.update.ReleaseInfo;
 
 /**
  * Selects the appropriate {@link AssetInfo} from a {@link ReleaseInfo} based on the current platform and distribution

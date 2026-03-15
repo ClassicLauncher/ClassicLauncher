@@ -4,7 +4,7 @@ import java.awt.*;
 
 import javax.swing.*;
 
-import net.classiclauncher.launcher.update.UpdateInstaller;
+import net.classiclauncher.launcher.update.install.UpdateInstaller;
 
 /**
  * Modal progress dialog displayed while a release asset is being downloaded.

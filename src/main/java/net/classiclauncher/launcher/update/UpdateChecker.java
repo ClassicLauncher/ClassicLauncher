@@ -21,14 +21,18 @@ import net.classiclauncher.launcher.ui.update.UpdateDialog;
  * Orchestrates the update availability check.
  *
  * <p>
- * {@link #checkAsync(LauncherSettings, Supplier)} spawns a daemon thread that:
+ * {@link #checkAsync(ReleaseSource, String, LauncherSettings, Supplier)} spawns a daemon thread that:
  * <ol>
- * <li>Reads the GitHub repository from {@link LauncherVersion#GITHUB_REPO}.</li>
- * <li>Fetches the releases list via {@link GitHubReleasesClient}.</li>
- * <li>Filters to releases newer than {@link LauncherVersion#VERSION}.</li>
+ * <li>Fetches releases from the provided {@link ReleaseSource}.</li>
+ * <li>Filters to releases newer than the given current version.</li>
  * <li>Skips the latest if it matches the user's "skip this version" setting.</li>
  * <li>Dispatches to the EDT to show {@link UpdateDialog} if updates exist.</li>
  * </ol>
+ *
+ * <p>
+ * The checker is fully decoupled from any specific release provider — pass a
+ * {@link net.classiclauncher.launcher.update.source.github.GitHubReleaseSource} for GitHub, or any other
+ * {@link ReleaseSource} implementation (including lambdas for testing).
  *
  * <p>
  * Network errors are logged at {@code WARN} level and silently suppressed — a failed update check must never interrupt
@@ -46,19 +50,26 @@ public class UpdateChecker {
 	 * {@link UpdateDialog} on the EDT using the window returned by {@code windowSupplier}.
 	 *
 	 * <p>
-	 * Returns immediately. If {@code settings.isUpdateCheckEnabled()} is {@code false} this method is a no-op.
+	 * Returns immediately. If {@code settings.isUpdateCheckEnabled()} is {@code false} or {@code source} is
+	 * {@code null}, this method is a no-op.
 	 *
+	 * @param source
+	 *            the release source to query; may be {@code null} (e.g. when repo is not configured)
+	 * @param currentVersion
+	 *            the version to treat as current (normally {@link LauncherVersion#VERSION})
 	 * @param settings
 	 *            launcher settings (for {@code check-enabled} and {@code skipped-version})
 	 * @param windowSupplier
 	 *            lazily evaluated on the EDT to find the parent window for the dialog
 	 */
-	public static void checkAsync(LauncherSettings settings, Supplier<Window> windowSupplier) {
+	public static void checkAsync(ReleaseSource source, String currentVersion, LauncherSettings settings,
+			Supplier<Window> windowSupplier) {
+		if (source == null) return;
 		if (!settings.isUpdateCheckEnabled()) return;
 
 		Thread thread = new Thread(() -> {
 			try {
-				UpdatePlan plan = check(settings);
+				UpdatePlan plan = checkInternal(source, currentVersion, settings, false);
 				if (plan == null || !plan.hasUpdate()) return;
 
 				final UpdatePlan finalPlan = plan;
@@ -80,59 +91,44 @@ public class UpdateChecker {
 	 * Performs a synchronous update check, ignoring the "skip this version" setting. Intended for the "Check Now"
 	 * button in settings so users always see available updates on demand.
 	 *
+	 * @param source
+	 *            the release source to query; may be {@code null}
+	 * @param currentVersion
+	 *            the version to treat as current
 	 * @param settings
 	 *            launcher settings
-	 * @return the update plan, or {@code null} if the GitHub repo is not configured
+	 * @return the update plan, or {@code null} if {@code source} is {@code null}
 	 * @throws IOException
 	 *             on network or parse errors
 	 */
-	public static UpdatePlan checkManual(LauncherSettings settings) throws IOException {
-		return checkInternal(LauncherVersion.GITHUB_REPO, LauncherVersion.VERSION, settings, true,
-				new GitHubReleasesClient());
+	public static UpdatePlan checkManual(ReleaseSource source, String currentVersion, LauncherSettings settings)
+			throws IOException {
+		return checkInternal(source, currentVersion, settings, true);
 	}
 
 	/**
-	 * Performs a synchronous update check. Package-private to allow direct use from tests.
+	 * Full-fidelity check with injectable parameters — used by both public methods and tests.
 	 *
-	 * @param settings
-	 *            launcher settings
-	 * @return the update plan, or {@code null} if the GitHub repo is not configured
-	 * @throws IOException
-	 *             on network or parse errors
-	 */
-	static UpdatePlan check(LauncherSettings settings) throws IOException {
-		return checkInternal(LauncherVersion.GITHUB_REPO, LauncherVersion.VERSION, settings, false,
-				new GitHubReleasesClient());
-	}
-
-	/**
-	 * Full-fidelity check with injectable parameters — used by tests to avoid touching static fields or the real GitHub
-	 * API.
-	 *
-	 * @param repo
-	 *            GitHub repository in {@code owner/name} form
+	 * @param source
+	 *            the release source to query; may be {@code null}
 	 * @param currentVersion
 	 *            the version to treat as current (normally {@link LauncherVersion#VERSION})
 	 * @param settings
 	 *            launcher settings
 	 * @param ignoreSkippedVersion
 	 *            if {@code true}, the skipped-version filter is bypassed
-	 * @param client
-	 *            the HTTP client to use (may point to a test server)
-	 * @return the update plan, or {@code null} if {@code repo} is blank or not configured
+	 * @return the update plan, or {@code null} if {@code source} is {@code null}
 	 * @throws IOException
 	 *             on network or parse errors
 	 */
-	static UpdatePlan checkInternal(String repo, String currentVersion, LauncherSettings settings,
-			boolean ignoreSkippedVersion, GitHubReleasesClient client) throws IOException {
-		if (repo == null || repo.isEmpty() || repo.startsWith("${")) {
-			LOG.debug("GitHub repo not configured — skipping update check");
+	static UpdatePlan checkInternal(ReleaseSource source, String currentVersion, LauncherSettings settings,
+			boolean ignoreSkippedVersion) throws IOException {
+		if (source == null) {
+			LOG.debug("No release source provided — skipping update check");
 			return null;
 		}
 
-		String json = client.fetchReleasesJson(repo);
-
-		List<ReleaseInfo> allReleases = GitHubJsonParser.parse(json);
+		List<ReleaseInfo> allReleases = source.fetchReleases();
 
 		String current = (currentVersion != null && !currentVersion.isEmpty())
 				? currentVersion

@@ -9,6 +9,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import net.classiclauncher.launcher.platform.Platform;
+import net.classiclauncher.launcher.update.install.ArtifactSelector;
+import net.classiclauncher.launcher.update.install.DistributionMode;
 
 class ArtifactSelectorTest {
 

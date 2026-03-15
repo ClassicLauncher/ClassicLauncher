@@ -15,12 +15,12 @@ import org.commonmark.renderer.html.HtmlRenderer;
 import net.classiclauncher.launcher.LauncherVersion;
 import net.classiclauncher.launcher.platform.Platform;
 import net.classiclauncher.launcher.settings.LauncherSettings;
-import net.classiclauncher.launcher.update.ArtifactSelector;
 import net.classiclauncher.launcher.update.AssetInfo;
-import net.classiclauncher.launcher.update.DistributionMode;
 import net.classiclauncher.launcher.update.ReleaseInfo;
-import net.classiclauncher.launcher.update.UpdateInstaller;
 import net.classiclauncher.launcher.update.UpdatePlan;
+import net.classiclauncher.launcher.update.install.ArtifactSelector;
+import net.classiclauncher.launcher.update.install.DistributionMode;
+import net.classiclauncher.launcher.update.install.UpdateInstaller;
 
 /**
  * Modal dialog shown when one or more newer launcher versions are available.

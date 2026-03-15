@@ -116,7 +116,8 @@ public class LauncherV1_1 {
 		settingsPanel.addSection("Launcher", new LauncherSettingsPanel(settings.getLauncher()));
 		settingsPanel.addSection("Java", new JavaSettingsPanel(settings.getJavaManager()));
 		settingsPanel.addSection("Extensions", new ExtensionSettingsPanel(settings.getExtensions()));
-		settingsPanel.addSection("Updates", new UpdateSettingsPanel(settings.getLauncher()));
+		settingsPanel.addSection("Updates",
+				new UpdateSettingsPanel(settings.getLauncher(), settings.getReleaseSource()));
 
 		JTabbedPane tabbedPane = new JTabbedPane();
 		// Remove the content-area border/insets that Swing (including macOS Aqua) adds around

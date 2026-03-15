@@ -4,7 +4,9 @@ import java.awt.*;
 
 import javax.swing.*;
 
+import net.classiclauncher.launcher.LauncherVersion;
 import net.classiclauncher.launcher.settings.LauncherSettings;
+import net.classiclauncher.launcher.update.ReleaseSource;
 import net.classiclauncher.launcher.update.UpdateChecker;
 import net.classiclauncher.launcher.update.UpdatePlan;
 
@@ -26,13 +28,23 @@ import net.classiclauncher.launcher.update.UpdatePlan;
 public class UpdateSettingsPanel extends JPanel {
 
 	private final LauncherSettings settings;
+	private final ReleaseSource releaseSource;
 	private final JLabel skippedValueLabel;
 	private final JLabel statusLabel;
 	private final JCheckBox enabledCheckbox;
 
-	public UpdateSettingsPanel(LauncherSettings settings) {
+	/**
+	 * Creates an update settings panel.
+	 *
+	 * @param settings
+	 *            launcher settings
+	 * @param releaseSource
+	 *            the release source for "Check Now"; may be {@code null} if not configured
+	 */
+	public UpdateSettingsPanel(LauncherSettings settings, ReleaseSource releaseSource) {
 		super(new BorderLayout(0, 10));
 		this.settings = settings;
+		this.releaseSource = releaseSource;
 
 		setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
@@ -98,7 +110,12 @@ public class UpdateSettingsPanel extends JPanel {
 		statusRow.add(statusLabel);
 		rows.add(statusRow);
 
-		add(rows, BorderLayout.CENTER);
+		// Wrap in a BorderLayout.NORTH so the rows stay pinned to the top
+		// instead of stretching to fill the full height of the center area.
+		JPanel wrapper = new JPanel(new BorderLayout());
+		wrapper.setOpaque(false);
+		wrapper.add(rows, BorderLayout.NORTH);
+		add(wrapper, BorderLayout.CENTER);
 	}
 
 	private void handleCheckNow(JButton checkNowButton) {
@@ -111,7 +128,7 @@ public class UpdateSettingsPanel extends JPanel {
 			protected UpdatePlan doInBackground() throws Exception {
 				// checkManual ignores the skipped-version filter so users always see available
 				// updates when clicking "Check Now" explicitly.
-				return UpdateChecker.checkManual(settings);
+				return UpdateChecker.checkManual(releaseSource, LauncherVersion.VERSION, settings);
 			}
 
 			@Override

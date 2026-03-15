@@ -1,4 +1,4 @@
-package net.classiclauncher.launcher.update;
+package net.classiclauncher.launcher.update.source.github;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -13,8 +13,7 @@ import net.classiclauncher.launcher.LauncherVersion;
  * Thin HTTP client for the GitHub Releases API.
  *
  * <p>
- * Operates on full URLs (not base+relative like {@code HttpGameApi}) because the API endpoint is fixed and known at
- * construction time.
+ * Operates on full URLs (not base+relative) because the API endpoint is fixed and known at construction time.
  *
  * <p>
  * Security measures applied:
@@ -32,7 +31,7 @@ public class GitHubReleasesClient {
 	private static final int READ_TIMEOUT_MS = 15_000;
 	private static final int MAX_REDIRECTS = 5;
 
-	private static final String DEFAULT_API_BASE = "https://api.github.com";
+	static final String DEFAULT_API_BASE = "https://api.github.com";
 
 	private final String apiBaseUrl;
 

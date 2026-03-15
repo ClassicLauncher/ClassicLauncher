@@ -1,4 +1,4 @@
-package net.classiclauncher.launcher.update;
+package net.classiclauncher.launcher.update.install;
 
 import java.awt.Component;
 import java.io.ByteArrayOutputStream;
@@ -18,6 +18,7 @@ import javax.swing.JOptionPane;
 
 import net.classiclauncher.launcher.LauncherVersion;
 import net.classiclauncher.launcher.platform.Platform;
+import net.classiclauncher.launcher.update.AssetInfo;
 
 /**
  * Downloads a release asset and triggers the platform-specific installation.
@@ -306,7 +307,6 @@ public class UpdateInstaller {
 		}
 	}
 
-	// Kept to avoid needing ByteArrayOutputStream in download, but we stream to file directly — unused here.
 	@SuppressWarnings("unused")
 	private static byte[] readFully(InputStream in) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();

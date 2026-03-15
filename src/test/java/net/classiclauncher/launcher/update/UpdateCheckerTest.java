@@ -4,20 +4,16 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import com.sun.net.httpserver.HttpServer;
 
 import net.classiclauncher.launcher.LauncherContext;
 import net.classiclauncher.launcher.settings.LauncherSettings;
@@ -27,7 +23,6 @@ class UpdateCheckerTest {
 	@TempDir
 	File tempDir;
 
-	private final List<HttpServer> servers = new ArrayList<>();
 	private LauncherSettings settings;
 
 	@BeforeEach
@@ -39,24 +34,14 @@ class UpdateCheckerTest {
 		settings = new LauncherSettings();
 	}
 
-	@AfterEach
-	void tearDown() {
-		for (HttpServer server : servers) {
-			server.stop(0);
-		}
-		servers.clear();
-	}
-
 	// ── 2 newer versions found ─────────────────────────────────────────────
 
 	@Test
 	void check_twoNewerVersions_returnsBothSortedAscending() throws IOException {
 		// GitHub returns newest first; UpdateChecker sorts ascending
-		String json = buildReleasesJson("v1.0.2", "v1.0.1");
-		HttpServer server = startServer("/repos/test/repo/releases", json);
-		GitHubReleasesClient client = new GitHubReleasesClient("http://localhost:" + server.getAddress().getPort());
+		ReleaseSource source = () -> Arrays.asList(release("v1.0.2"), release("v1.0.1"));
 
-		UpdatePlan plan = UpdateChecker.checkInternal("test/repo", "1.0.0", settings, false, client);
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
 
 		assertNotNull(plan);
 		assertTrue(plan.hasUpdate());
@@ -71,11 +56,9 @@ class UpdateCheckerTest {
 
 	@Test
 	void check_alreadyLatest_returnsEmptyPlan() throws IOException {
-		String json = buildReleasesJson("v1.0.0");
-		HttpServer server = startServer("/repos/test/repo/releases", json);
-		GitHubReleasesClient client = new GitHubReleasesClient("http://localhost:" + server.getAddress().getPort());
+		ReleaseSource source = () -> Collections.singletonList(release("v1.0.0"));
 
-		UpdatePlan plan = UpdateChecker.checkInternal("test/repo", "1.0.0", settings, false, client);
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
 
 		assertNotNull(plan);
 		assertFalse(plan.hasUpdate());
@@ -83,11 +66,9 @@ class UpdateCheckerTest {
 
 	@Test
 	void check_olderVersionOnServer_returnsEmptyPlan() throws IOException {
-		String json = buildReleasesJson("v0.9.0");
-		HttpServer server = startServer("/repos/test/repo/releases", json);
-		GitHubReleasesClient client = new GitHubReleasesClient("http://localhost:" + server.getAddress().getPort());
+		ReleaseSource source = () -> Collections.singletonList(release("v0.9.0"));
 
-		UpdatePlan plan = UpdateChecker.checkInternal("test/repo", "1.0.0", settings, false, client);
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
 
 		assertNotNull(plan);
 		assertFalse(plan.hasUpdate());
@@ -97,11 +78,11 @@ class UpdateCheckerTest {
 
 	@Test
 	void check_networkError_throwsIOException() {
-		// Port 1 is not listening — expect IOException
-		GitHubReleasesClient client = new GitHubReleasesClient("http://localhost:1");
+		ReleaseSource source = () -> {
+			throw new IOException("Connection refused");
+		};
 
-		assertThrows(IOException.class,
-				() -> UpdateChecker.checkInternal("test/repo", "1.0.0", settings, false, client));
+		assertThrows(IOException.class, () -> UpdateChecker.checkInternal(source, "1.0.0", settings, false));
 	}
 
 	// ── Skipped version ────────────────────────────────────────────────────
@@ -109,11 +90,9 @@ class UpdateCheckerTest {
 	@Test
 	void check_latestVersionIsSkipped_returnsEmptyPlan() throws IOException {
 		settings.setSkippedVersion("1.0.2");
-		String json = buildReleasesJson("v1.0.2", "v1.0.1");
-		HttpServer server = startServer("/repos/test/repo/releases", json);
-		GitHubReleasesClient client = new GitHubReleasesClient("http://localhost:" + server.getAddress().getPort());
+		ReleaseSource source = () -> Arrays.asList(release("v1.0.2"), release("v1.0.1"));
 
-		UpdatePlan plan = UpdateChecker.checkInternal("test/repo", "1.0.0", settings, false, client);
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
 
 		assertNotNull(plan);
 		assertFalse(plan.hasUpdate(), "Plan should be empty when latest matches skipped version");
@@ -122,12 +101,10 @@ class UpdateCheckerTest {
 	@Test
 	void check_latestVersionIsSkipped_ignoredWhenManualCheck() throws IOException {
 		settings.setSkippedVersion("1.0.2");
-		String json = buildReleasesJson("v1.0.2", "v1.0.1");
-		HttpServer server = startServer("/repos/test/repo/releases", json);
-		GitHubReleasesClient client = new GitHubReleasesClient("http://localhost:" + server.getAddress().getPort());
+		ReleaseSource source = () -> Arrays.asList(release("v1.0.2"), release("v1.0.1"));
 
 		// ignoreSkippedVersion=true → manual check bypasses the skip filter
-		UpdatePlan plan = UpdateChecker.checkInternal("test/repo", "1.0.0", settings, true, client);
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, true);
 
 		assertNotNull(plan);
 		assertTrue(plan.hasUpdate(), "Manual check should show updates even when version is skipped");
@@ -137,82 +114,94 @@ class UpdateCheckerTest {
 	void check_intermediateVersionSkipped_latestStillShown() throws IOException {
 		// Only skip 1.0.1, not 1.0.2 (the latest)
 		settings.setSkippedVersion("1.0.1");
-		String json = buildReleasesJson("v1.0.2", "v1.0.1");
-		HttpServer server = startServer("/repos/test/repo/releases", json);
-		GitHubReleasesClient client = new GitHubReleasesClient("http://localhost:" + server.getAddress().getPort());
+		ReleaseSource source = () -> Arrays.asList(release("v1.0.2"), release("v1.0.1"));
 
-		UpdatePlan plan = UpdateChecker.checkInternal("test/repo", "1.0.0", settings, false, client);
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
 
 		assertNotNull(plan);
 		assertTrue(plan.hasUpdate(), "1.0.2 is newer than skipped 1.0.1, so updates should appear");
 	}
 
-	// ── Repo not configured ────────────────────────────────────────────────
+	// ── Null source ───────────────────────────────────────────────────────
 
 	@Test
-	void check_repoNotConfigured_returnsNull() throws IOException {
-		GitHubReleasesClient client = new GitHubReleasesClient();
-
-		UpdatePlan plan = UpdateChecker.checkInternal("", "1.0.0", settings, false, client);
+	void check_nullSource_returnsNull() throws IOException {
+		UpdatePlan plan = UpdateChecker.checkInternal(null, "1.0.0", settings, false);
 
 		assertNull(plan);
 	}
 
+	// ── Empty release list ────────────────────────────────────────────────
+
 	@Test
-	void check_repoIsPlaceholder_returnsNull() throws IOException {
-		GitHubReleasesClient client = new GitHubReleasesClient();
+	void check_emptyReleaseList_returnsEmptyPlan() throws IOException {
+		ReleaseSource source = Collections::emptyList;
 
-		UpdatePlan plan = UpdateChecker.checkInternal("${github.repo}", "1.0.0", settings, false, client);
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
 
-		assertNull(plan);
+		assertNotNull(plan);
+		assertFalse(plan.hasUpdate());
 	}
 
 	// ── Tag with "v" prefix stripped correctly ────────────────────────────
 
 	@Test
 	void check_tagWithVPrefix_comparedCorrectly() throws IOException {
-		String json = buildReleasesJson("v1.0.1");
-		HttpServer server = startServer("/repos/test/repo/releases", json);
-		GitHubReleasesClient client = new GitHubReleasesClient("http://localhost:" + server.getAddress().getPort());
+		ReleaseSource source = () -> Collections.singletonList(release("v1.0.1"));
 
-		UpdatePlan plan = UpdateChecker.checkInternal("test/repo", "1.0.0", settings, false, client);
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
 
 		assertNotNull(plan);
 		assertTrue(plan.hasUpdate());
 		assertEquals("1.0.1", plan.latestVersion()); // v prefix stripped in latestVersion()
 	}
 
-	// ── Helpers ────────────────────────────────────────────────────────────
+	// ── Multiple versions sorted correctly ────────────────────────────────
 
-	private String buildReleasesJson(String... tagNames) {
-		StringBuilder sb = new StringBuilder("[");
-		for (int i = 0; i < tagNames.length; i++) {
-			if (i > 0) sb.append(",");
-			String tag = tagNames[i];
-			String version = tag.startsWith("v") ? tag.substring(1) : tag;
-			sb.append("{\"tag_name\":\"").append(tag).append("\",").append("\"name\":\"Release ").append(version)
-					.append("\",").append("\"body\":\"Changelog for ").append(version).append("\",")
-					.append("\"draft\":false,").append("\"prerelease\":false,").append("\"assets\":[{\"name\":\"app-")
-					.append(version).append(".jar\",").append("\"browser_download_url\":\"https://example.com/app-")
-					.append(version).append(".jar\",").append("\"size\":1024}]}");
-		}
-		sb.append("]");
-		return sb.toString();
+	@Test
+	void check_multipleVersions_sortedAscending() throws IOException {
+		ReleaseSource source = () -> Arrays.asList(release("v1.0.5"), release("v1.0.1"), release("v1.0.3"));
+
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
+
+		assertNotNull(plan);
+		assertEquals(3, plan.getReleases().size());
+		assertEquals("v1.0.1", plan.getReleases().get(0).getTagName());
+		assertEquals("v1.0.3", plan.getReleases().get(1).getTagName());
+		assertEquals("v1.0.5", plan.getReleases().get(2).getTagName());
 	}
 
-	private HttpServer startServer(String path, String jsonContent) throws IOException {
-		HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-		byte[] bytes = jsonContent.getBytes(StandardCharsets.UTF_8);
-		server.createContext(path, exchange -> {
-			exchange.getResponseHeaders().set("Content-Type", "application/json");
-			exchange.sendResponseHeaders(200, bytes.length);
-			try (OutputStream os = exchange.getResponseBody()) {
-				os.write(bytes);
-			}
-		});
-		server.start();
-		servers.add(server);
-		return server;
+	// ── Mixed newer and older versions ────────────────────────────────────
+
+	@Test
+	void check_mixedVersions_onlyNewerIncluded() throws IOException {
+		ReleaseSource source = () -> Arrays.asList(release("v2.0.0"), release("v1.0.0"), release("v0.5.0"),
+				release("v1.5.0"));
+
+		UpdatePlan plan = UpdateChecker.checkInternal(source, "1.0.0", settings, false);
+
+		assertNotNull(plan);
+		assertEquals(2, plan.getReleases().size());
+		assertEquals("v1.5.0", plan.getReleases().get(0).getTagName());
+		assertEquals("v2.0.0", plan.getReleases().get(1).getTagName());
+	}
+
+	// ── checkManual with null source ──────────────────────────────────────
+
+	@Test
+	void checkManual_nullSource_returnsNull() throws IOException {
+		UpdatePlan plan = UpdateChecker.checkManual(null, "1.0.0", settings);
+
+		assertNull(plan);
+	}
+
+	// ── Helpers ────────────────────────────────────────────────────────────
+
+	private static ReleaseInfo release(String tagName) {
+		String version = tagName.startsWith("v") ? tagName.substring(1) : tagName;
+		List<AssetInfo> assets = new ArrayList<>();
+		assets.add(new AssetInfo("app-" + version + ".jar", "https://example.com/app-" + version + ".jar", 1024));
+		return new ReleaseInfo(tagName, "Release " + version, "Changelog for " + version, assets);
 	}
 
 	/**

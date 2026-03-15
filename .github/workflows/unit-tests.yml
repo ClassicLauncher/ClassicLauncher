@@ -36,7 +36,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
       - name: Run updater tests
-        run: mvn test -Dspotless.check.skip=true -Dtest="UpdateCheckerTest,ArtifactSelectorTest,GitHubJsonParserTest"
+        run: mvn test -Dspotless.check.skip=true -Dtest="UpdateCheckerTest,ArtifactSelectorTest,GitHubJsonParserTest,GitHubReleaseSourceTest,ReleaseSourceRegistryTest"
       - name: Upload Surefire reports
         if: failure()
         uses: actions/upload-artifact@v4

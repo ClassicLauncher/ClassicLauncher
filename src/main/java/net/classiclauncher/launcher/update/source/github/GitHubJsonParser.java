@@ -1,8 +1,11 @@
-package net.classiclauncher.launcher.update;
+package net.classiclauncher.launcher.update.source.github;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import net.classiclauncher.launcher.update.AssetInfo;
+import net.classiclauncher.launcher.update.ReleaseInfo;
 
 /**
  * Minimal, dependency-free parser for the GitHub Releases API JSON response.
@@ -116,7 +119,7 @@ final class GitHubJsonParser {
 			}
 		}
 
-		if (pos < json.length() && json.charAt(pos) == '}') pos();
+		if (pos < json.length() && json.charAt(pos) == '}') pos++;
 
 		// Filter out drafts and pre-releases
 		if (draft || prerelease) return null;
@@ -153,7 +156,7 @@ final class GitHubJsonParser {
 			}
 		}
 
-		if (pos < json.length() && json.charAt(pos) == ']') pos();
+		if (pos < json.length() && json.charAt(pos) == ']') pos++;
 		return assets;
 	}
 
@@ -172,7 +175,7 @@ final class GitHubJsonParser {
 			if (pos >= json.length() || json.charAt(pos) == '}') break;
 			String key = readString();
 			skipWhitespace();
-			if (pos < json.length() && json.charAt(pos) == ':') pos();
+			if (pos < json.length() && json.charAt(pos) == ':') pos++;
 			skipWhitespace();
 
 			if ("name".equals(key)) {
@@ -187,12 +190,12 @@ final class GitHubJsonParser {
 
 			skipWhitespace();
 			if (pos < json.length() && json.charAt(pos) == ',') {
-				pos();
+				pos++;
 				skipWhitespace();
 			}
 		}
 
-		if (pos < json.length() && json.charAt(pos) == '}') pos();
+		if (pos < json.length() && json.charAt(pos) == '}') pos++;
 
 		if (assetName.isEmpty() || downloadUrl.isEmpty()) return null;
 		return new AssetInfo(assetName, downloadUrl, sizeBytes);
@@ -372,11 +375,6 @@ final class GitHubJsonParser {
 	private void skipWhitespace() {
 		while (pos < json.length() && Character.isWhitespace(json.charAt(pos)))
 			pos++;
-	}
-
-	/** Advances {@code pos} by one, used in place of bare {@code pos++} for clarity. */
-	private void pos() {
-		pos++;
 	}
 
 	private boolean isDelimiter(char c) {

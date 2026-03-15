@@ -1,10 +1,13 @@
-package net.classiclauncher.launcher.update;
+package net.classiclauncher.launcher.update.source.github;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+
+import net.classiclauncher.launcher.update.AssetInfo;
+import net.classiclauncher.launcher.update.ReleaseInfo;
 
 class GitHubJsonParserTest {
 
@@ -132,6 +135,26 @@ class GitHubJsonParserTest {
 		assertEquals("", releases.get(0).getBody());
 	}
 
+	@Test
+	void parse_body_unescapesUnicode() {
+		String json = "[{\"tag_name\":\"v1.0.1\",\"name\":\"R\","
+				+ "\"body\":\"caf\\u00e9\",\"draft\":false,\"prerelease\":false,\"assets\":[]}]";
+
+		List<ReleaseInfo> releases = GitHubJsonParser.parse(json);
+
+		assertEquals("caf\u00e9", releases.get(0).getBody());
+	}
+
+	@Test
+	void parse_body_unescapesTab() {
+		String json = "[{\"tag_name\":\"v1.0.1\",\"name\":\"R\","
+				+ "\"body\":\"col1\\tcol2\",\"draft\":false,\"prerelease\":false,\"assets\":[]}]";
+
+		List<ReleaseInfo> releases = GitHubJsonParser.parse(json);
+
+		assertEquals("col1\tcol2", releases.get(0).getBody());
+	}
+
 	// ── Empty assets ───────────────────────────────────────────────────────
 
 	@Test
@@ -159,6 +182,44 @@ class GitHubJsonParserTest {
 		assertEquals("app.jar", releases.get(0).getAssets().get(0).getName());
 		assertEquals("app.dmg", releases.get(0).getAssets().get(1).getName());
 		assertEquals("app.msi", releases.get(0).getAssets().get(2).getName());
+	}
+
+	// ── Asset with missing fields ─────────────────────────────────────────
+
+	@Test
+	void parse_assetMissingName_excluded() {
+		String json = "[{\"tag_name\":\"v1.0.1\",\"name\":\"R\",\"body\":\"\","
+				+ "\"draft\":false,\"prerelease\":false," + "\"assets\":["
+				+ "{\"browser_download_url\":\"https://example.com/app.jar\",\"size\":100}" + "]}]";
+
+		List<ReleaseInfo> releases = GitHubJsonParser.parse(json);
+
+		assertTrue(releases.get(0).getAssets().isEmpty());
+	}
+
+	@Test
+	void parse_assetMissingUrl_excluded() {
+		String json = "[{\"tag_name\":\"v1.0.1\",\"name\":\"R\",\"body\":\"\","
+				+ "\"draft\":false,\"prerelease\":false," + "\"assets\":[" + "{\"name\":\"app.jar\",\"size\":100}"
+				+ "]}]";
+
+		List<ReleaseInfo> releases = GitHubJsonParser.parse(json);
+
+		assertTrue(releases.get(0).getAssets().isEmpty());
+	}
+
+	// ── Unknown fields skipped ────────────────────────────────────────────
+
+	@Test
+	void parse_unknownFieldsInRelease_skipped() {
+		String json = "[{\"id\":12345,\"tag_name\":\"v1.0.1\",\"name\":\"R\",\"body\":\"\","
+				+ "\"html_url\":\"https://github.com/test\","
+				+ "\"draft\":false,\"prerelease\":false,\"created_at\":\"2024-01-01\",\"assets\":[]}]";
+
+		List<ReleaseInfo> releases = GitHubJsonParser.parse(json);
+
+		assertEquals(1, releases.size());
+		assertEquals("v1.0.1", releases.get(0).getTagName());
 	}
 
 	// ── Empty / null input ─────────────────────────────────────────────────
@@ -199,6 +260,17 @@ class GitHubJsonParserTest {
 				+ "{\"tag_name\":\"v2.0.0\",\"name\":\"D\",\"body\":\"\",\"draft\":true,\"prerelease\":false,\"assets\":[]},"
 				+ "{\"tag_name\":\"v1.9.0-rc\",\"name\":\"P\",\"body\":\"\",\"draft\":false,\"prerelease\":true,\"assets\":[]}"
 				+ "]";
+
+		List<ReleaseInfo> releases = GitHubJsonParser.parse(json);
+
+		assertTrue(releases.isEmpty());
+	}
+
+	// ── Missing tag_name → excluded ───────────────────────────────────────
+
+	@Test
+	void parse_missingTagName_excluded() {
+		String json = "[{\"name\":\"R\",\"body\":\"\",\"draft\":false,\"prerelease\":false,\"assets\":[]}]";
 
 		List<ReleaseInfo> releases = GitHubJsonParser.parse(json);
 
