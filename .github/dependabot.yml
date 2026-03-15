@@ -10,6 +10,10 @@ updates:
       # 0.22.0+ targets Java 11 bytecode (class file major version 55) which is
       # incompatible with the project's Java 8 compiler target.
       - dependency-name: "org.commonmark:commonmark"
+      # JUnit 6 requires Java 17 at runtime and introduces breaking API changes.
+      # Project targets Java 8 bytecode; stay on JUnit 5.x until a migration is planned.
+      - dependency-name: "org.junit.jupiter:junit-jupiter"
+        versions: [">= 6.0.0"]
     groups:
       all-dependencies:
         patterns:
