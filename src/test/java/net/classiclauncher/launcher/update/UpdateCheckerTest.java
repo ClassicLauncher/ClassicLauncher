@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,9 +31,11 @@ class UpdateCheckerTest {
 	private LauncherSettings settings;
 
 	@BeforeEach
-	void setUp() {
-		System.setProperty("user.home", tempDir.getAbsolutePath());
-		LauncherContext.initialize("test-updater");
+	void setUp() throws Exception {
+		// Inject the context directly so the dataDir is always the isolated tempDir,
+		// bypassing platform-specific logic (e.g. XDG_CONFIG_HOME on Linux CI) that
+		// would cause all tests to share the same settings file.
+		injectLauncherContext(tempDir);
 		settings = new LauncherSettings();
 	}
 
@@ -209,6 +213,24 @@ class UpdateCheckerTest {
 		server.start();
 		servers.add(server);
 		return server;
+	}
+
+	/**
+	 * Injects a {@link LauncherContext} whose {@code dataDir} is set directly to {@code dataDir}, bypassing
+	 * platform-specific path resolution (e.g. {@code XDG_CONFIG_HOME} on Linux). This mirrors the same isolation
+	 * pattern used in {@code ExtensionsTest} to prevent settings written by one test from leaking into the next when
+	 * running on Linux CI.
+	 */
+	private static void injectLauncherContext(File dataDir) throws Exception {
+		Constructor<LauncherContext> ctor = LauncherContext.class.getDeclaredConstructor(String.class);
+		ctor.setAccessible(true);
+		LauncherContext ctx = ctor.newInstance("test-updater");
+		Field dataDirField = LauncherContext.class.getDeclaredField("dataDir");
+		dataDirField.setAccessible(true);
+		dataDirField.set(ctx, dataDir);
+		Field instanceField = LauncherContext.class.getDeclaredField("instance");
+		instanceField.setAccessible(true);
+		instanceField.set(null, ctx);
 	}
 
 }
