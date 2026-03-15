@@ -60,6 +60,10 @@ public class ExtensionSettingsPanel extends JPanel {
 		add(scroll, BorderLayout.CENTER);
 
 		refreshGrid();
+
+		// Refresh the grid whenever any extension is installed (including via the
+		// custom URI handler, which bypasses this panel's own install flow entirely).
+		extensions.addInstallListener(() -> SwingUtilities.invokeLater(this::refreshGrid));
 	}
 
 	// ── Grid management ───────────────────────────────────────────────────────
@@ -75,6 +79,8 @@ public class ExtensionSettingsPanel extends JPanel {
 		}
 		gridPanel.revalidate();
 		gridPanel.repaint();
+		revalidate();
+		repaint();
 	}
 
 	// ── Install flow ──────────────────────────────────────────────────────────
@@ -183,7 +189,6 @@ public class ExtensionSettingsPanel extends JPanel {
 			protected void done() {
 				try {
 					get();
-					refreshGrid();
 					progressDialog.markSuccess();
 				} catch (Exception ex) {
 					Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
@@ -193,8 +198,9 @@ public class ExtensionSettingsPanel extends JPanel {
 
 		}.execute();
 
-		progressDialog.setVisible(true);
+		progressDialog.setVisible(true); // blocks until user clicks OK
 		if (progressDialog.isSuccessful()) {
+			refreshGrid();
 			JOptionPane.showMessageDialog(this, "A restart of the launcher is required for this change to take effect.",
 					"Restart Required", JOptionPane.INFORMATION_MESSAGE);
 		}
@@ -234,7 +240,6 @@ public class ExtensionSettingsPanel extends JPanel {
 			protected void done() {
 				try {
 					get();
-					refreshGrid();
 					dialog.markSuccess();
 				} catch (Exception ex) {
 					Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
@@ -244,11 +249,9 @@ public class ExtensionSettingsPanel extends JPanel {
 
 		}.execute();
 
-		dialog.setVisible(true); // blocks EDT (modal) while worker runs in background
-		// After OK is clicked: check if we need to show restart notice
-		// markSuccess() leaves the dialog with a success state; we show the restart
-		// dialog once the modal returns (i.e. user clicked OK).
+		dialog.setVisible(true); // blocks until user clicks OK
 		if (dialog.isSuccessful()) {
+			refreshGrid();
 			JOptionPane.showMessageDialog(this, "A restart of the launcher is required for this change to take effect.",
 					"Restart Required", JOptionPane.INFORMATION_MESSAGE);
 		}

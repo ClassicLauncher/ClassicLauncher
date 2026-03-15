@@ -44,6 +44,7 @@ public class ExtensionCard extends JPanel {
 	private static final Color COLOR_HOVER_BORDER = new Color(0x4A90D9);
 	private static final Color COLOR_ENABLED = new Color(0x34A853);
 	private static final Color COLOR_DISABLED = new Color(0xEA4335);
+	private static final Color COLOR_PENDING_RESTART = new Color(0xFF9800);
 	private static final Color COLOR_NAME = new Color(0x222222);
 	private static final Color COLOR_VERSION = new Color(0x777777);
 	private static final Color COLOR_USED_BY = new Color(0x999999);
@@ -145,13 +146,20 @@ public class ExtensionCard extends JPanel {
 	// ── Status dot ────────────────────────────────────────────────────────────
 
 	private JLabel buildStatusDot() {
+		final boolean pendingRestart = extensions.isPendingRestart(record.getId());
 		JLabel dot = new JLabel() {
 
 			@Override
 			protected void paintComponent(Graphics g) {
 				Graphics2D g2 = (Graphics2D) g.create();
 				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				g2.setColor(record.isEnabled() ? COLOR_ENABLED : COLOR_DISABLED);
+				Color dotColor;
+				if (pendingRestart) {
+					dotColor = COLOR_PENDING_RESTART;
+				} else {
+					dotColor = record.isEnabled() ? COLOR_ENABLED : COLOR_DISABLED;
+				}
+				g2.setColor(dotColor);
 				int d = Math.min(getWidth(), getHeight()) - 2;
 				g2.fillOval((getWidth() - d) / 2, (getHeight() - d) / 2, d, d);
 				g2.dispose();
@@ -160,7 +168,11 @@ public class ExtensionCard extends JPanel {
 		};
 		dot.setPreferredSize(new Dimension(14, 14));
 		dot.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		dot.setToolTipText(record.isEnabled() ? "Enabled — click to disable" : "Disabled — click to enable");
+		if (pendingRestart) {
+			dot.setToolTipText("Restart required — this extension will become active on next launch");
+		} else {
+			dot.setToolTipText(record.isEnabled() ? "Enabled — click to disable" : "Disabled — click to enable");
+		}
 		dot.addMouseListener(new MouseAdapter() {
 
 			@Override

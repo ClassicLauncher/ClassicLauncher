@@ -52,6 +52,16 @@ public final class Extensions {
 
 	private final List<ExtensionRecord> records = new ArrayList<>();
 	private final List<String> loadIssues = new ArrayList<>();
+	/**
+	 * IDs of extensions installed in the current JVM session that have not yet been loaded into the classloader. Used
+	 * by the UI to display an "orange / restart required" indicator on their cards.
+	 */
+	private final Set<String> pendingRestartIds = new HashSet<>();
+	/**
+	 * Listeners notified (on the calling thread) whenever an extension is successfully installed via
+	 * {@link #installManifest} or {@link #installLocal}. Registered via {@link #addInstallListener}.
+	 */
+	private final List<Runnable> installListeners = new ArrayList<>();
 
 	// ── Load ──────────────────────────────────────────────────────────────────
 
@@ -180,6 +190,8 @@ public final class Extensions {
 		YmlConfig config = new YmlConfig(LauncherContext.getInstance().resolve("extensions", id + ".yml"));
 		record.save(config);
 		records.add(record);
+		pendingRestartIds.add(id);
+		fireInstallListeners();
 	}
 
 	/**
@@ -260,6 +272,8 @@ public final class Extensions {
 		YmlConfig config = new YmlConfig(LauncherContext.getInstance().resolve("extensions", id + ".yml"));
 		record.save(config);
 		records.add(record);
+		pendingRestartIds.add(id);
+		fireInstallListeners();
 	}
 
 	// ── Dependency chain resolution ───────────────────────────────────────────
@@ -606,6 +620,39 @@ public final class Extensions {
 	 */
 	public List<String> getLoadIssues() {
 		return Collections.unmodifiableList(loadIssues);
+	}
+
+	/**
+	 * Returns {@code true} if the extension with the given ID was installed in the current JVM session and has not yet
+	 * been loaded into the classloader (i.e. a launcher restart is required for it to become active).
+	 *
+	 * @param id
+	 *            the extension record ID
+	 */
+	public boolean isPendingRestart(String id) {
+		return id != null && pendingRestartIds.contains(id);
+	}
+
+	/**
+	 * Registers a listener that is called (on the installing thread) whenever an extension is successfully installed
+	 * via {@link #installManifest} or {@link #installLocal}. Intended for UI components that need to refresh their view
+	 * when a new extension appears — callers should dispatch to the EDT themselves if required.
+	 *
+	 * @param listener
+	 *            the callback to invoke; must not be {@code null}
+	 */
+	public void addInstallListener(Runnable listener) {
+		if (listener != null) installListeners.add(listener);
+	}
+
+	private void fireInstallListeners() {
+		for (Runnable listener : installListeners) {
+			try {
+				listener.run();
+			} catch (Exception e) {
+				System.err.println("[Extensions] Install listener threw an exception: " + e.getMessage());
+			}
+		}
 	}
 
 	// ── Enable / disable helpers ──────────────────────────────────────────────
