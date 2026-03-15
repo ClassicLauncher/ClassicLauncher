@@ -25,6 +25,7 @@ import net.classiclauncher.launcher.platform.Platform;
 import net.classiclauncher.launcher.settings.LauncherStyle;
 import net.classiclauncher.launcher.settings.Settings;
 import net.classiclauncher.launcher.ui.ExtensionUriConfirmDialog;
+import net.classiclauncher.launcher.update.UpdateChecker;
 import net.classiclauncher.launcher.uri.ExtensionInstallRequest;
 import net.classiclauncher.launcher.uri.SingleInstanceManager;
 import net.classiclauncher.launcher.uri.UriSchemeHandler;
@@ -183,6 +184,15 @@ public class Main {
 				handleUri(pending);
 			}
 		});
+
+		// ── 12. Check for updates (daemon thread, non-blocking) ───────────────
+		// Launched after the UI invokeLater block is submitted; the update check runs
+		// in the background and dispatches the UpdateDialog to the EDT only if a newer
+		// version is found. The window supplier is evaluated lazily on the EDT when the
+		// dialog is about to appear, so it always returns the active frame.
+		if (settings.getLauncher().isUpdateCheckEnabled()) {
+			UpdateChecker.checkAsync(settings.getLauncher(), Main::findActiveWindow);
+		}
 	}
 
 	// ── URI handling ──────────────────────────────────────────────────────────
