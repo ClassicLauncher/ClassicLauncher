@@ -1,0 +1,120 @@
+name: Test Build
+
+# Builds platform-native installers when someone comments "/build-native" on a PR.
+# Reacts to the comment with a rocket emoji, builds all platforms, then posts a
+# follow-up comment with links to download the artifacts.
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Gate: only proceed for /build-native comments on pull requests
+  # ─────────────────────────────────────────────────────────────────────────────
+  gate:
+    name: Check trigger
+    if: >-
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/build-native')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      reactions: write
+    outputs:
+      head-sha: ${{ steps.pr.outputs.head-sha }}
+      head-ref: ${{ steps.pr.outputs.head-ref }}
+
+    steps:
+      - name: React with rocket
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
+
+      - name: Get PR head SHA and ref
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('head-sha', pr.data.head.sha);
+            core.setOutput('head-ref', pr.data.head.ref);
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build all native artifacts via reusable workflow
+  # ─────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    needs: gate
+    uses: ./.github/workflows/native-build-reusable.yml
+    with:
+      artifact-retention-days: 7
+      ref: ${{ needs.gate.outputs.head-sha }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Post results back to the PR
+  # ─────────────────────────────────────────────────────────────────────────────
+  comment:
+    name: Post artifact links
+    needs: [gate, build]
+    if: always() && needs.gate.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      actions: read
+
+    steps:
+      - name: Post comment with results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const buildResult = '${{ needs.build.result }}';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const sha = '${{ needs.gate.outputs.head-sha }}'.substring(0, 7);
+
+            let body;
+            if (buildResult === 'success') {
+              body = [
+                `### Native Build \u2705`,
+                ``,
+                `Built from \`${sha}\` on branch \`${{ needs.gate.outputs.head-ref }}\``,
+                ``,
+                `| Platform | Artifact |`,
+                `|----------|----------|`,
+                `| Java 8+ JAR | \`jar-jdk8\` |`,
+                `| macOS DMG | \`macos-dmg\` |`,
+                `| Windows MSI | \`windows-msi\` |`,
+                `| Linux DEB | \`linux-deb\` |`,
+                `| Linux RPM | \`linux-rpm\` |`,
+                ``,
+                `[Download artifacts from the workflow run](${runUrl})`,
+                ``,
+                `> Artifacts expire in 7 days.`
+              ].join('\n');
+            } else {
+              body = [
+                `### Native Build \u274c`,
+                ``,
+                `Build failed for \`${sha}\` on branch \`${{ needs.gate.outputs.head-ref }}\`.`,
+                ``,
+                `[View workflow run for details](${runUrl})`
+              ].join('\n');
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
