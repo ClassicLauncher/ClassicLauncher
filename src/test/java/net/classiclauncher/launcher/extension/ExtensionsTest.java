@@ -7,6 +7,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -45,9 +47,8 @@ class ExtensionsTest {
 	private final List<HttpServer> servers = new ArrayList<>();
 
 	@BeforeEach
-	void setUp() {
-		System.setProperty("user.home", tempDir.getAbsolutePath());
-		LauncherContext.initialize("test-ext");
+	void setUp() throws Exception {
+		injectLauncherContext(tempDir);
 		extensions = new Extensions();
 	}
 
@@ -1193,6 +1194,23 @@ class ExtensionsTest {
 		Method m = Extensions.class.getDeclaredMethod("isNewerVersion", String.class, String.class);
 		m.setAccessible(true);
 		return (Boolean) m.invoke(null, current, available);
+	}
+
+	/**
+	 * Injects a {@link LauncherContext} whose dataDir is exactly {@code dataDir}, bypassing the platform path
+	 * resolution that reads {@code XDG_CONFIG_HOME} on Linux. Each test gets a unique {@code @TempDir}, so this
+	 * guarantees complete isolation even on CI runners where {@code XDG_CONFIG_HOME} is set.
+	 */
+	private static void injectLauncherContext(File dataDir) throws Exception {
+		Constructor<LauncherContext> ctor = LauncherContext.class.getDeclaredConstructor(String.class);
+		ctor.setAccessible(true);
+		LauncherContext ctx = ctor.newInstance("test-ext");
+		Field dataDirField = LauncherContext.class.getDeclaredField("dataDir");
+		dataDirField.setAccessible(true);
+		dataDirField.set(ctx, dataDir);
+		Field instanceField = LauncherContext.class.getDeclaredField("instance");
+		instanceField.setAccessible(true);
+		instanceField.set(null, ctx);
 	}
 
 }

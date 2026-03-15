@@ -11,8 +11,8 @@
 	<properties>
 		<maven.compiler.source>8</maven.compiler.source>
 		<maven.compiler.target>8</maven.compiler.target>
-		<maven.compiler.testSource>11</maven.compiler.testSource>
-		<maven.compiler.testTarget>11</maven.compiler.testTarget>
+		<maven.compiler.testSource>8</maven.compiler.testSource>
+		<maven.compiler.testTarget>8</maven.compiler.testTarget>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<!-- Native packaging properties (overridable on the command line) -->
 		<!-- jpackage installer type: dmg | pkg | exe | msi | deb | rpm | app-image -->
