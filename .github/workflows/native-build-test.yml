@@ -17,7 +17,8 @@ jobs:
     name: Check trigger
     if: >-
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/build-native')
+      contains(github.event.comment.body, '/build-native') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
