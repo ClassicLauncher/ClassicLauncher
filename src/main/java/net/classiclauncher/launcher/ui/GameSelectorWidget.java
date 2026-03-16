@@ -532,6 +532,7 @@ public class GameSelectorWidget extends JPanel {
 		selectedGame = game;
 		if (game != null) {
 			LauncherContext.getInstance().setDefaultGame(game);
+			LauncherContext.getInstance().setDefaultProviderTypeId(provider != null ? provider.getTypeId() : null);
 		}
 		repaint();
 		updateWindowTitle(game);

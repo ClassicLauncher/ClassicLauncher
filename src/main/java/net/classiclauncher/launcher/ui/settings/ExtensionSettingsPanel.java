@@ -78,11 +78,15 @@ public class ExtensionSettingsPanel extends SettingsPage {
 			gridPanel.repaint();
 		});
 
-		// ── Add Extension button (header action) ─────────────────────────────
-		JButton addButton = new JButton("Add Extension\u2026");
-		addButton.addActionListener(e -> promptInstall());
+		// ── Footer buttons ───────────────────────────────────────────────────
+		JButton installButton = new JButton("Install Extension");
+		installButton.addActionListener(e -> promptInstall());
 
-		buildPage(new PageLayout().headerAction(addButton).body(scroll).noStatus());
+		JButton installLocalButton = new JButton("Install Local Extension");
+		installLocalButton.addActionListener(e -> promptLocalInstall());
+
+		buildPage(
+				new PageLayout().body(scroll).footerAction(installButton).footerAction(installLocalButton).noStatus());
 
 		refreshGrid();
 
@@ -128,24 +132,9 @@ public class ExtensionSettingsPanel extends SettingsPage {
 		urlField.setMaximumSize(new Dimension(Integer.MAX_VALUE, urlField.getPreferredSize().height));
 		content.add(urlField);
 
-		JButton localButton = new JButton("Local\u2026");
-		localButton.setToolTipText("Install from a local manifest file and JAR");
-
-		Object[] options = {localButton, "OK", "Cancel"};
-		JOptionPane pane = new JOptionPane(content, JOptionPane.PLAIN_MESSAGE, JOptionPane.YES_NO_CANCEL_OPTION, null,
-				options, "OK");
-
-		JDialog dialog = pane.createDialog(this, "Add Extension");
-
-		localButton.addActionListener(e -> {
-			dialog.setVisible(false);
-			promptLocalInstall();
-		});
-
-		dialog.setVisible(true);
-
-		Object selected = pane.getValue();
-		if (!"OK".equals(selected)) return;
+		int result = JOptionPane.showConfirmDialog(this, content, "Install Extension", JOptionPane.OK_CANCEL_OPTION,
+				JOptionPane.PLAIN_MESSAGE);
+		if (result != JOptionPane.OK_OPTION) return;
 
 		String url = urlField.getText();
 		if (url == null || url.trim().isEmpty()) return;

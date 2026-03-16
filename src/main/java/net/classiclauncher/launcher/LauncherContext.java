@@ -1,10 +1,12 @@
 package net.classiclauncher.launcher;
 
 import java.io.File;
+import java.util.List;
 
 import lombok.Getter;
-import lombok.Setter;
+import net.classiclauncher.launcher.account.AccountProvider;
 import net.classiclauncher.launcher.game.Game;
+import net.classiclauncher.launcher.settings.LauncherSettings;
 import net.classiclauncher.launcher.settings.Settings;
 
 /**
@@ -29,17 +31,18 @@ public class LauncherContext {
 	 * -- GETTER -- The root data directory for this launcher on the current platform.
 	 */
 	private final File dataDir;
+
 	/**
-	 * -- GETTER -- Returns the default for this launcher instance, or if none has been set. Individual s may override
-	 * this on a per-account-type basis via
-	 * <p>
-	 * . -- SETTER -- Sets the default game for this launcher instance. Call this in after .
-	 *
-	 * <pre>
-	 * </pre>
+	 * The default game for this launcher instance, or {@code null} if none has been set. Set via
+	 * {@link #setDefaultGame(Game)} which also persists the choice to {@link LauncherSettings}.
 	 */
-	@Setter
 	private Game defaultGame;
+
+	/**
+	 * The type ID of the provider associated with the default game selection, or {@code null}. Persisted alongside the
+	 * game ID so the correct provider is restored on restart when multiple providers offer the same game.
+	 */
+	private String defaultProviderTypeId;
 
 	private LauncherContext(String name) {
 		this.name = name;
@@ -61,6 +64,127 @@ public class LauncherContext {
 		if (instance == null) instance = new LauncherContext("classiclauncher");
 		return instance;
 	}
+
+	// ── Default game / provider ──────────────────────────────────────────────
+
+	/**
+	 * Sets the default game for this launcher instance and persists the game ID to
+	 * {@link LauncherSettings#setDefaultGameId(String)}. If {@link Settings} is not yet initialized the persistence
+	 * step is silently skipped.
+	 *
+	 * @param game
+	 *            the default game, or {@code null} to clear
+	 */
+	public void setDefaultGame(Game game) {
+		System.out.println("[LauncherContext.setDefaultGame] Setting to: "
+				+ (game != null ? game.getDisplayName() + " (" + game.getGameId() + ")" : "null"));
+		new Exception("[LauncherContext.setDefaultGame] call stack").printStackTrace(System.out);
+		this.defaultGame = game;
+		try {
+			Settings.getInstance().getLauncher().setDefaultGameId(game != null ? game.getGameId() : null);
+		} catch (Exception ignored) {
+			// Settings not yet initialized during early startup
+		}
+	}
+
+	public void setDefaultGameIfNone(Game game) {
+		if (game == null) setDefaultGame(game);
+	}
+
+	/**
+	 * Sets the provider type ID associated with the default game selection and persists it to
+	 * {@link LauncherSettings#setDefaultProviderTypeId(String)}.
+	 *
+	 * @param providerTypeId
+	 *            the provider type ID, or {@code null} to clear
+	 */
+	public void setDefaultProviderTypeId(String providerTypeId) {
+		this.defaultProviderTypeId = providerTypeId;
+		try {
+			Settings.getInstance().getLauncher().setDefaultProviderTypeId(providerTypeId);
+		} catch (Exception ignored) {
+		}
+	}
+
+	/**
+	 * Restores the default game and provider from persisted settings by scanning all registered providers for a
+	 * matching game ID.
+	 *
+	 * <p>
+	 * Resolution order:
+	 * <ol>
+	 * <li>If a provider type ID was saved, look for the game in that specific provider first.</li>
+	 * <li>If not found (provider removed, extension unloaded, etc.), scan all providers for a game with the saved
+	 * ID.</li>
+	 * </ol>
+	 *
+	 * <p>
+	 * Call this after extensions are loaded and accounts are signalled ready, so all providers and their games are
+	 * registered.
+	 */
+	public void restoreDefaultGame() {
+		try {
+			LauncherSettings launcher = Settings.getInstance().getLauncher();
+			String gameId = launcher.getDefaultGameId();
+			String providerTypeId = launcher.getDefaultProviderTypeId();
+			System.out.println(
+					"[LauncherContext.restoreDefaultGame] gameId=" + gameId + " providerTypeId=" + providerTypeId);
+			if (gameId == null) {
+				System.out.println("[LauncherContext.restoreDefaultGame] No saved gameId, skipping restore");
+				return;
+			}
+
+			List<AccountProvider> providers = Settings.getInstance().getAccounts().getProviders();
+			System.out.println("[LauncherContext.restoreDefaultGame] Scanning " + providers.size() + " provider(s)");
+			for (AccountProvider p : providers) {
+				System.out.println("[LauncherContext.restoreDefaultGame]   provider=" + p.getTypeId() + " ("
+						+ p.getDisplayName() + ") games=" + p.getGames().size());
+				for (Game g : p.getGames()) {
+					System.out.println("[LauncherContext.restoreDefaultGame]     game=" + g.getGameId() + " ("
+							+ g.getDisplayName() + ")");
+				}
+			}
+
+			// Tier 1: look in the saved provider
+			if (providerTypeId != null) {
+				for (AccountProvider provider : providers) {
+					if (provider.getTypeId().equals(providerTypeId)) {
+						for (Game game : provider.getGames()) {
+							if (game.getGameId().equals(gameId)) {
+								this.defaultGame = game;
+								this.defaultProviderTypeId = providerTypeId;
+								System.out.println("[LauncherContext.restoreDefaultGame] Restored from saved provider: "
+										+ game.getDisplayName());
+								return;
+							}
+						}
+						System.out.println("[LauncherContext.restoreDefaultGame] Saved provider " + providerTypeId
+								+ " found but game " + gameId + " not in its game list");
+						break;
+					}
+				}
+			}
+
+			// Tier 2: scan all providers
+			for (AccountProvider provider : providers) {
+				for (Game game : provider.getGames()) {
+					if (game.getGameId().equals(gameId)) {
+						this.defaultGame = game;
+						this.defaultProviderTypeId = provider.getTypeId();
+						System.out.println("[LauncherContext.restoreDefaultGame] Restored from fallback scan: "
+								+ game.getDisplayName() + " (provider=" + provider.getTypeId() + ")");
+						return;
+					}
+				}
+			}
+			System.out.println("[LauncherContext.restoreDefaultGame] Game " + gameId + " not found in any provider");
+		} catch (Exception e) {
+			System.out.println("[LauncherContext.restoreDefaultGame] Exception: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+
+	// ── Platform data directory ──────────────────────────────────────────────
 
 	private static File resolvePlatformDataDir(String name) {
 		String os = System.getProperty("os.name", "").toLowerCase();

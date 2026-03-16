@@ -216,6 +216,30 @@ public final class Game {
 		return LauncherContext.getInstance().getDefaultGame();
 	}
 
+	// ── Identity ─────────────────────────────────────────────────────────────
+
+	/**
+	 * Two games are equal when they share the same {@link #gameId}. This is essential for {@code List.contains()}
+	 * checks to work correctly when the same logical game is represented by different object instances (e.g. after
+	 * deserialization or when providers recreate their game lists).
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (!(o instanceof Game)) return false;
+		return gameId.equals(((Game) o).gameId);
+	}
+
+	@Override
+	public int hashCode() {
+		return gameId.hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return displayName + " (" + gameId + ")";
+	}
+
 	// ── Builder ───────────────────────────────────────────────────────────────
 
 	/**

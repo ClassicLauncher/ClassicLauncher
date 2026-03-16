@@ -6,6 +6,7 @@ import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
+import net.classiclauncher.launcher.game.Game;
 import net.classiclauncher.launcher.profile.Profile;
 import net.classiclauncher.launcher.settings.Settings;
 
@@ -49,8 +50,11 @@ public class ProfileEditorTab extends JPanel {
 	 */
 	public void refresh() {
 		tableModel.setRowCount(0);
+		Game resolvedGame = Game.resolve();
+		String activeGameId = resolvedGame != null ? resolvedGame.getGameId() : null;
 		List<Profile> profiles = Settings.getInstance().getProfiles().getAll();
 		for (Profile profile : profiles) {
+			if (profile.getGameId() != null && !profile.getGameId().equals(activeGameId)) continue;
 			String versionDisplay = profile.getVersionId() != null ? profile.getVersionId() : "Latest version";
 			tableModel.addRow(new Object[]{profile.getName(), versionDisplay});
 		}
