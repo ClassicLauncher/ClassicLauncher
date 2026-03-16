@@ -13,6 +13,7 @@ import javax.swing.border.Border;
 
 import net.classiclauncher.launcher.extension.ExtensionRecord;
 import net.classiclauncher.launcher.extension.Extensions;
+import net.classiclauncher.launcher.ui.DotsIcon;
 import net.classiclauncher.launcher.ui.IconButton;
 import net.classiclauncher.launcher.ui.ResourceLoader;
 
@@ -248,7 +249,7 @@ public class ExtensionCard extends JPanel {
 	// ── Kebab menu ────────────────────────────────────────────────────────────
 
 	private IconButton buildKebabButton() {
-		IconButton kebab = new IconButton("⋮", "Options").withFontStyle(Font.BOLD, 14f).withSize(24, 24);
+		IconButton kebab = new IconButton(new DotsIcon(14), "Options").withSize(24, 24);
 		kebab.addActionListener(e -> showKebabMenu(kebab));
 		return kebab;
 	}

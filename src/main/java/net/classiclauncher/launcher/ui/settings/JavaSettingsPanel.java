@@ -10,6 +10,7 @@ import javax.swing.table.DefaultTableModel;
 import net.classiclauncher.launcher.jre.JavaDetector;
 import net.classiclauncher.launcher.jre.JavaInstallation;
 import net.classiclauncher.launcher.jre.JavaManager;
+import net.classiclauncher.launcher.ui.StarIcon;
 
 /**
  * Settings page for managing known Java runtime installations.
@@ -36,6 +37,8 @@ public class JavaSettingsPanel extends SettingsPage {
 	private final DefaultTableModel tableModel;
 	private final JTable table;
 
+	private static final StarIcon STAR_ICON = new StarIcon(14, new Color(0xF5A623));
+
 	public JavaSettingsPanel(JavaManager javaManager) {
 		super("java", "Java", 20);
 		this.javaManager = javaManager;
@@ -48,12 +51,32 @@ public class JavaSettingsPanel extends SettingsPage {
 				return false;
 			}
 
+			@Override
+			public Class<?> getColumnClass(int col) {
+				return col == COL_DEFAULT ? javax.swing.Icon.class : String.class;
+			}
+
 		};
 
 		table = new JTable(tableModel);
 		table.setFillsViewportHeight(true);
 		table.setRowHeight(22);
 		table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+		// Render the Default column as a centred icon
+		table.getColumnModel().getColumn(COL_DEFAULT).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+
+			@Override
+			public Component getTableCellRendererComponent(JTable t, Object value, boolean isSelected, boolean hasFocus,
+					int row, int column) {
+				JLabel label = (JLabel) super.getTableCellRendererComponent(t, "", isSelected, hasFocus, row, column);
+				label.setIcon(value instanceof javax.swing.Icon ? (javax.swing.Icon) value : null);
+				label.setHorizontalAlignment(SwingConstants.CENTER);
+				label.setText("");
+				return label;
+			}
+
+		});
 
 		// Column widths
 		table.getColumnModel().getColumn(COL_DEFAULT).setMaxWidth(60);
@@ -177,7 +200,7 @@ public class JavaSettingsPanel extends SettingsPage {
 		List<JavaInstallation> all = javaManager.getAll();
 		for (JavaInstallation inst : all) {
 			String source = inst.isBuiltIn() ? "Built-in" : (inst.isAutoDetected() ? "Auto-detected" : "Manual");
-			tableModel.addRow(new Object[]{inst.isDefaultInstallation() ? "\u2605" : "", inst.getDisplayName(),
+			tableModel.addRow(new Object[]{inst.isDefaultInstallation() ? STAR_ICON : null, inst.getDisplayName(),
 					inst.getVersion().isEmpty() ? "\u2014" : inst.getVersion(), source, inst.getExecutablePath()});
 		}
 	}
