@@ -12,7 +12,7 @@ import net.classiclauncher.launcher.jre.JavaInstallation;
 import net.classiclauncher.launcher.jre.JavaManager;
 
 /**
- * Settings section panel for managing known Java runtime installations.
+ * Settings page for managing known Java runtime installations.
  *
  * <p>
  * Features:
@@ -24,7 +24,7 @@ import net.classiclauncher.launcher.jre.JavaManager;
  * <li><b>Set as Default</b> — marks the selected installation as the default for the {@link JavaManager}.</li>
  * </ul>
  */
-public class JavaSettingsPanel extends JPanel {
+public class JavaSettingsPanel extends SettingsPage {
 
 	private static final int COL_DEFAULT = 0;
 	private static final int COL_NAME = 1;
@@ -35,18 +35,10 @@ public class JavaSettingsPanel extends JPanel {
 	private final JavaManager javaManager;
 	private final DefaultTableModel tableModel;
 	private final JTable table;
-	private final JLabel statusLabel;
 
 	public JavaSettingsPanel(JavaManager javaManager) {
-		super(new BorderLayout(0, 6));
+		super("java", "Java", 20);
 		this.javaManager = javaManager;
-
-		setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-		// ── Title ─────────────────────────────────────────────────────────────
-		JLabel title = new JLabel("Java Runtime Environments");
-		title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
-		add(title, BorderLayout.NORTH);
 
 		// ── Table ─────────────────────────────────────────────────────────────
 		tableModel = new DefaultTableModel(new String[]{"Default", "Name", "Version", "Source", "Path"}, 0) {
@@ -72,9 +64,8 @@ public class JavaSettingsPanel extends JPanel {
 		tableScroll.setBorder(BorderFactory.createLineBorder(UIManager.getColor("Separator.foreground") != null
 				? UIManager.getColor("Separator.foreground")
 				: Color.LIGHT_GRAY));
-		add(tableScroll, BorderLayout.CENTER);
 
-		// ── Buttons + status ──────────────────────────────────────────────────
+		// ── Buttons ──────────────────────────────────────────────────────────
 		JButton addBtn = new JButton("Add...");
 		JButton removeBtn = new JButton("Remove");
 		JButton setDefaultBtn = new JButton("Set as Default");
@@ -92,17 +83,8 @@ public class JavaSettingsPanel extends JPanel {
 			removeBtn.setEnabled(sel == null || !sel.isBuiltIn());
 		});
 
-		statusLabel = new JLabel(" ");
-		statusLabel.setFont(statusLabel.getFont().deriveFont(11f));
-
-		JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-		buttonRow.add(addBtn);
-		buttonRow.add(removeBtn);
-		buttonRow.add(setDefaultBtn);
-		buttonRow.add(detectBtn);
-		buttonRow.add(statusLabel);
-
-		add(buttonRow, BorderLayout.SOUTH);
+		buildPage(new PageLayout().body(tableScroll).footerAction(addBtn).footerAction(removeBtn)
+				.footerAction(setDefaultBtn).footerAction(detectBtn));
 
 		refresh();
 	}
@@ -119,47 +101,47 @@ public class JavaSettingsPanel extends JPanel {
 
 		File selected = chooser.getSelectedFile();
 		if (!selected.isFile()) {
-			status("Selected path is not a file.");
+			setStatus("Selected path is not a file.");
 			return;
 		}
 
-		status("Querying version...");
+		setStatus("Querying version...");
 		String version = JavaDetector.queryVersion(selected.getAbsolutePath());
 		JavaInstallation inst = JavaInstallation.manual(selected.getAbsolutePath(), version);
 		javaManager.add(inst);
 		refresh();
-		status("Added: " + inst.getDisplayName());
+		setStatus("Added: " + inst.getDisplayName());
 	}
 
 	private void handleRemove() {
 		int row = table.getSelectedRow();
 		if (row < 0) {
-			status("No installation selected.");
+			setStatus("No installation selected.");
 			return;
 		}
 		JavaInstallation inst = getInstallationAt(row);
 		if (inst == null) return;
 		javaManager.remove(inst.getId());
 		refresh();
-		status("Removed.");
+		setStatus("Removed.");
 	}
 
 	private void handleSetDefault() {
 		int row = table.getSelectedRow();
 		if (row < 0) {
-			status("No installation selected.");
+			setStatus("No installation selected.");
 			return;
 		}
 		JavaInstallation inst = getInstallationAt(row);
 		if (inst == null) return;
 		javaManager.setDefault(inst.getId());
 		refresh();
-		status("Default set to: " + inst.getDisplayName());
+		setStatus("Default set to: " + inst.getDisplayName());
 	}
 
 	private void handleAutoDetect(JButton detectBtn) {
 		detectBtn.setEnabled(false);
-		status("Detecting...");
+		setStatus("Detecting...");
 		new SwingWorker<Integer, Void>() {
 
 			@Override
@@ -172,9 +154,9 @@ public class JavaSettingsPanel extends JPanel {
 				try {
 					int added = get();
 					refresh();
-					status(added > 0 ? "Found " + added + " new installation(s)." : "No new installations found.");
+					setStatus(added > 0 ? "Found " + added + " new installation(s)." : "No new installations found.");
 				} catch (Exception e) {
-					status("Detection failed: " + e.getMessage());
+					setStatus("Detection failed: " + e.getMessage());
 				} finally {
 					detectBtn.setEnabled(true);
 				}
@@ -195,18 +177,14 @@ public class JavaSettingsPanel extends JPanel {
 		List<JavaInstallation> all = javaManager.getAll();
 		for (JavaInstallation inst : all) {
 			String source = inst.isBuiltIn() ? "Built-in" : (inst.isAutoDetected() ? "Auto-detected" : "Manual");
-			tableModel.addRow(new Object[]{inst.isDefaultInstallation() ? "★" : "", inst.getDisplayName(),
-					inst.getVersion().isEmpty() ? "—" : inst.getVersion(), source, inst.getExecutablePath()});
+			tableModel.addRow(new Object[]{inst.isDefaultInstallation() ? "\u2605" : "", inst.getDisplayName(),
+					inst.getVersion().isEmpty() ? "\u2014" : inst.getVersion(), source, inst.getExecutablePath()});
 		}
 	}
 
 	private JavaInstallation getInstallationAt(int row) {
 		List<JavaInstallation> all = javaManager.getAll();
 		return (row >= 0 && row < all.size()) ? all.get(row) : null;
-	}
-
-	private void status(String message) {
-		statusLabel.setText(message);
 	}
 
 }

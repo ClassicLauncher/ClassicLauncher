@@ -8,7 +8,7 @@ import net.classiclauncher.launcher.settings.LauncherSettings;
 import net.classiclauncher.launcher.settings.LauncherStyle;
 
 /**
- * Settings section panel for the top-level launcher configuration.
+ * Settings page for the top-level launcher configuration.
  *
  * <p>
  * Exposes two settings from {@link LauncherSettings}:
@@ -22,26 +22,19 @@ import net.classiclauncher.launcher.settings.LauncherStyle;
  * <p>
  * Changes are persisted to {@code <dataDir>/settings.yml} only when the user clicks <em>Apply</em>.
  */
-public class LauncherSettingsPanel extends JPanel {
+public class LauncherSettingsPanel extends SettingsPage {
 
 	private final LauncherSettings launcherSettings;
 	private final JComboBox<StyleChoice> styleCombo;
 	private final JTextField updateNotesField;
-	private final JLabel statusLabel;
 
 	public LauncherSettingsPanel(LauncherSettings launcherSettings) {
-		super(new BorderLayout(0, 8));
+		super("launcher", "Launcher", 10);
 		this.launcherSettings = launcherSettings;
-
-		setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-		// ── Title ─────────────────────────────────────────────────────────────
-		JLabel title = new JLabel("Launcher Settings");
-		title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
-		add(title, BorderLayout.NORTH);
 
 		// ── Form ──────────────────────────────────────────────────────────────
 		JPanel form = new JPanel(new GridBagLayout());
+		form.setOpaque(false);
 
 		GridBagConstraints labelConstraints = labelConstraints(0);
 		GridBagConstraints fieldConstraints = fieldConstraints(0);
@@ -49,8 +42,8 @@ public class LauncherSettingsPanel extends JPanel {
 		// Style
 		form.add(new JLabel("UI Style:"), labelConstraints);
 		styleCombo = new JComboBox<>(
-				new StyleChoice[]{new StyleChoice(LauncherStyle.ALPHA, "Alpha  –  2010 login window"),
-						new StyleChoice(LauncherStyle.V1_1, "V1.1  –  2013 tabbed interface")});
+				new StyleChoice[]{new StyleChoice(LauncherStyle.ALPHA, "Alpha  \u2013  2010 login window"),
+						new StyleChoice(LauncherStyle.V1_1, "V1.1  \u2013  2013 tabbed interface")});
 		preselectStyle(launcherSettings.getStyle());
 		form.add(styleCombo, fieldConstraints);
 
@@ -79,19 +72,11 @@ public class LauncherSettingsPanel extends JPanel {
 		form.add(new JPanel(), labelConstraints);
 		form.add(new JPanel(), fieldConstraints);
 
-		add(form, BorderLayout.CENTER);
-
-		// ── Bottom bar ────────────────────────────────────────────────────────
-		statusLabel = new JLabel(" ");
-		statusLabel.setFont(statusLabel.getFont().deriveFont(11f));
-
+		// ── Apply button ─────────────────────────────────────────────────────
 		JButton applyBtn = new JButton("Apply");
 		applyBtn.addActionListener(e -> handleApply());
 
-		JPanel bottomRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-		bottomRow.add(applyBtn);
-		bottomRow.add(statusLabel);
-		add(bottomRow, BorderLayout.SOUTH);
+		buildPage(new PageLayout().body(form).footerAction(applyBtn));
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -105,7 +90,7 @@ public class LauncherSettingsPanel extends JPanel {
 		}
 		String url = updateNotesField.getText().trim();
 		launcherSettings.setUpdateNotesUrl(url);
-		statusLabel.setText("Settings saved.");
+		setStatus("Settings saved.");
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────

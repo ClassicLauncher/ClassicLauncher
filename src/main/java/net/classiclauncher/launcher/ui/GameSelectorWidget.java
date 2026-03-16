@@ -19,9 +19,6 @@ import net.classiclauncher.launcher.account.AccountProvider;
 import net.classiclauncher.launcher.game.Game;
 import net.classiclauncher.launcher.settings.LauncherStyle;
 import net.classiclauncher.launcher.settings.Settings;
-import net.classiclauncher.launcher.ui.settings.ExtensionSettingsPanel;
-import net.classiclauncher.launcher.ui.settings.JavaSettingsPanel;
-import net.classiclauncher.launcher.ui.settings.LauncherSettingsPanel;
 import net.classiclauncher.launcher.ui.settings.SettingsPanel;
 
 /**
@@ -342,13 +339,11 @@ public class GameSelectorWidget extends JPanel {
 		dialog.setLayout(new BorderLayout());
 
 		Settings settings = Settings.getInstance();
-		SettingsPanel settingsPanel = new SettingsPanel();
-		settingsPanel.addSection("Launcher", new LauncherSettingsPanel(settings.getLauncher()));
-		settingsPanel.addSection("Java", new JavaSettingsPanel(settings.getJavaManager()));
-		settingsPanel.addSection("Extensions", new ExtensionSettingsPanel(settings.getExtensions()));
+		SettingsPanel settingsPanel = SettingsPanel.createDefault(settings);
 
 		dialog.setContentPane(settingsPanel);
 		dialog.setSize(640, 440);
+		dialog.setMinimumSize(new Dimension(640, 440));
 		dialog.setLocationRelativeTo(frame);
 		dialog.setVisible(true);
 	}

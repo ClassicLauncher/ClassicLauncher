@@ -13,7 +13,7 @@ import net.classiclauncher.launcher.extension.ExtensionRecord;
 import net.classiclauncher.launcher.extension.Extensions;
 
 /**
- * Settings panel for managing launcher extensions.
+ * Settings page for managing launcher extensions.
  *
  * <p>
  * Displays installed extensions as a compact grid of {@link ExtensionCard} widgets. Each card shows the extension icon,
@@ -23,7 +23,7 @@ import net.classiclauncher.launcher.extension.Extensions;
  * This panel is responsible only for the header, grid layout, and the install flow (URL input, dependency resolution,
  * confirmation dialogs). All single-card interaction and rendering is delegated to {@link ExtensionCard}.
  */
-public class ExtensionSettingsPanel extends JPanel {
+public class ExtensionSettingsPanel extends SettingsPage {
 
 	private static final int GAP = 8;
 
@@ -31,25 +31,41 @@ public class ExtensionSettingsPanel extends JPanel {
 	private final JPanel gridPanel;
 
 	public ExtensionSettingsPanel(Extensions extensions) {
+		super("extensions", "Extensions", 30);
 		this.extensions = extensions;
-		setLayout(new BorderLayout());
 
-		// ── North: header ──────────────────────────────────────────────────────
-		JPanel header = new JPanel(new BorderLayout());
-		header.setBorder(BorderFactory.createEmptyBorder(8, 8, 4, 8));
+		// ── Scrollable grid (body) ────────────────────────────────────────────
+		// A standard FlowLayout does not recalculate preferred height when the container
+		// width changes, so cards get clipped inside a JScrollPane. This custom panel
+		// overrides getPreferredSize to compute the wrapped height from the viewport width,
+		// ensuring the scroll pane always shows the full grid without horizontal overflow.
+		gridPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, GAP, GAP)) {
 
-		JLabel title = new JLabel("Installed Extensions");
-		title.setFont(title.getFont().deriveFont(Font.BOLD, 13f));
-		header.add(title, BorderLayout.WEST);
+			@Override
+			public Dimension getPreferredSize() {
+				int width = getParent() != null ? getParent().getWidth() : getWidth();
+				if (width <= 0) return super.getPreferredSize();
 
-		JButton addButton = new JButton("Add Extension…");
-		addButton.addActionListener(e -> promptInstall());
-		header.add(addButton, BorderLayout.EAST);
+				Insets insets = getInsets();
+				int availableWidth = width - insets.left - insets.right;
+				int x = GAP;
+				int y = GAP;
+				int rowHeight = 0;
+				for (int i = 0; i < getComponentCount(); i++) {
+					Dimension d = getComponent(i).getPreferredSize();
+					if (x + d.width + GAP > availableWidth && x > GAP) {
+						x = GAP;
+						y += rowHeight + GAP;
+						rowHeight = 0;
+					}
+					x += d.width + GAP;
+					rowHeight = Math.max(rowHeight, d.height);
+				}
+				y += rowHeight + GAP;
+				return new Dimension(width, y + insets.top + insets.bottom);
+			}
 
-		add(header, BorderLayout.NORTH);
-
-		// ── Center: scrollable grid ────────────────────────────────────────────
-		gridPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, GAP, GAP));
+		};
 		gridPanel.setBackground(Color.WHITE);
 		gridPanel.setOpaque(true);
 
@@ -57,7 +73,16 @@ public class ExtensionSettingsPanel extends JPanel {
 				ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		scroll.setBorder(BorderFactory.createEmptyBorder());
 		scroll.getViewport().setBackground(Color.WHITE);
-		add(scroll, BorderLayout.CENTER);
+		scroll.getViewport().addChangeListener(e -> {
+			gridPanel.revalidate();
+			gridPanel.repaint();
+		});
+
+		// ── Add Extension button (header action) ─────────────────────────────
+		JButton addButton = new JButton("Add Extension\u2026");
+		addButton.addActionListener(e -> promptInstall());
+
+		buildPage(new PageLayout().headerAction(addButton).body(scroll).noStatus());
 
 		refreshGrid();
 
@@ -103,7 +128,7 @@ public class ExtensionSettingsPanel extends JPanel {
 		urlField.setMaximumSize(new Dimension(Integer.MAX_VALUE, urlField.getPreferredSize().height));
 		content.add(urlField);
 
-		JButton localButton = new JButton("Local…");
+		JButton localButton = new JButton("Local\u2026");
 		localButton.setToolTipText("Install from a local manifest file and JAR");
 
 		Object[] options = {localButton, "OK", "Cancel"};
