@@ -90,21 +90,16 @@ add(inst);
 
 ## UI — Settings tab
 
-The V1_1 launcher exposes the JRE manager under **Settings → Java**. All four built-in sections
-are registered in this order:
+The V1_1 launcher exposes the JRE manager under **Settings → Java**. The settings panel is
+created via factory methods that assemble all built-in pages in priority order:
 
 ```java
-SettingsPanel settingsPanel = new SettingsPanel();
-settingsPanel.addSection("Launcher",   new LauncherSettingsPanel(settings.getLauncher()));
-settingsPanel.addSection("Java",       new JavaSettingsPanel(settings.getJavaManager()));
-settingsPanel.addSection("Extensions", new ExtensionSettingsPanel(settings.getExtensions()));
-settingsPanel.addSection("Updates",
-        new UpdateSettingsPanel(settings.getLauncher(), settings.getReleaseSource()));
+SettingsPanel settingsPanel = SettingsPanel.createDefault(settings);
 ```
 
 `SettingsPanel` can be embedded as a tab (`JTabbedPane`) or wrapped in a `JDialog` — it has no
-frame dependency. To navigate to a specific section programmatically:
+frame dependency. To navigate to a specific page programmatically:
 
 ```java
-settingsPanel.selectSection("Java");
+settingsPanel.selectPage("java");
 ```

@@ -1,29 +1,28 @@
 package net.classiclauncher.launcher.ui.settings;
 
 import java.awt.*;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.*;
+
+import net.classiclauncher.launcher.settings.Settings;
 
 /**
  * Reusable settings panel with a left-sidebar navigation and a right content area.
  *
  * <p>
- * Sections are registered via {@link #addSection(String, JPanel)}. The sidebar uses a {@link JList} (system selection
- * colours) to navigate between sections displayed via a {@link CardLayout}.
+ * Pages are registered via {@link #addPage(SettingsPage)} and displayed in priority order (lower priority values appear
+ * first). Pages with equal priority preserve insertion order.
  *
  * <p>
- * Usage:
+ * The sidebar uses a {@link JList} (system selection colours) to navigate between pages displayed via a
+ * {@link CardLayout}. Lifecycle hooks ({@link SettingsPage#onPageShown()} / {@link SettingsPage#onPageHidden()}) are
+ * called on selection changes.
  *
- * <pre>{@code
- * SettingsPanel settings = new SettingsPanel();
- * settings.addSection("Java", new JavaSettingsPanel(javaManager));
- * settings.addSection("Network", new NetworkSettingsPanel());
- * }</pre>
  * <p>
- * Can be embedded in a tab ({@link JTabbedPane}) for the V1_1 launcher, or wrapped in a {@link JDialog} for the Alpha
- * launcher — the panel itself has no frame dependency.
+ * Use the factory method {@link #createDefault(Settings)} to construct a pre-configured panel with the built-in pages
+ * and any extension-registered pages.
  */
 public class SettingsPanel extends JPanel {
 
@@ -31,7 +30,8 @@ public class SettingsPanel extends JPanel {
 	private final JList<SectionEntry> sidebarList;
 	private final JPanel contentPanel;
 	private final CardLayout cardLayout;
-	private final Map<String, JPanel> sections = new LinkedHashMap<>();
+	private final List<SettingsPage> pages = new ArrayList<>();
+	private SettingsPage currentPage;
 
 	public SettingsPanel() {
 		setLayout(new BorderLayout());
@@ -59,7 +59,13 @@ public class SettingsPanel extends JPanel {
 			if (!e.getValueIsAdjusting()) {
 				SectionEntry entry = sidebarList.getSelectedValue();
 				if (entry != null) {
-					cardLayout.show(contentPanel, entry.id);
+					SettingsPage newPage = entry.page;
+					if (currentPage != null && currentPage != newPage) {
+						currentPage.onPageHidden();
+					}
+					cardLayout.show(contentPanel, entry.page.getId());
+					currentPage = newPage;
+					currentPage.onPageShown();
 				}
 			}
 		});
@@ -69,52 +75,123 @@ public class SettingsPanel extends JPanel {
 	}
 
 	/**
-	 * Registers a section and adds it to the sidebar. The first section added becomes the initially visible one.
+	 * Adds a page to the panel, inserting it in priority order. Pages with equal priority preserve insertion order. The
+	 * first page added (or the lowest-priority page) becomes the initially visible one.
 	 *
-	 * @param label
-	 *            text shown in the sidebar navigation list
-	 * @param content
-	 *            the panel to display when this section is active
+	 * @param page
+	 *            the settings page to add
 	 */
-	public void addSection(String label, JPanel content) {
-		String id = label.toLowerCase().replace(' ', '-');
-		sections.put(id, content);
-		contentPanel.add(content, id);
-		sidebarModel.addElement(new SectionEntry(id, label));
+	public void addPage(SettingsPage page) {
+		int insertIndex = 0;
+		for (int i = 0; i < pages.size(); i++) {
+			if (pages.get(i).getPriority() <= page.getPriority()) {
+				insertIndex = i + 1;
+			} else {
+				break;
+			}
+		}
+
+		pages.add(insertIndex, page);
+		contentPanel.add(page, page.getId());
+		sidebarModel.insertElementAt(new SectionEntry(page), insertIndex);
+
 		if (sidebarList.getSelectedIndex() < 0) {
 			sidebarList.setSelectedIndex(0);
-			cardLayout.show(contentPanel, id);
+			cardLayout.show(contentPanel, page.getId());
+			currentPage = page;
+			page.onPageShown();
 		}
 	}
 
 	/**
-	 * Programmatically selects the section with the given label (case-sensitive). Does nothing if the label is not
-	 * found.
+	 * Removes the page with the given ID. If the removed page was currently selected, the first remaining page is
+	 * selected instead.
+	 *
+	 * @param id
+	 *            the page identifier
 	 */
-	public void selectSection(String label) {
-		for (int i = 0; i < sidebarModel.size(); i++) {
-			if (sidebarModel.get(i).label.equals(label)) {
+	public void removePage(String id) {
+		for (int i = 0; i < pages.size(); i++) {
+			if (pages.get(i).getId().equals(id)) {
+				SettingsPage removed = pages.remove(i);
+				contentPanel.remove(removed);
+				sidebarModel.removeElementAt(i);
+
+				if (currentPage == removed) {
+					currentPage = null;
+					if (!pages.isEmpty()) {
+						sidebarList.setSelectedIndex(0);
+					}
+				}
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Returns the page with the given ID, or {@code null} if not found.
+	 *
+	 * @param id
+	 *            the page identifier
+	 * @return the page, or {@code null}
+	 */
+	public SettingsPage getPage(String id) {
+		for (SettingsPage page : pages) {
+			if (page.getId().equals(id)) return page;
+		}
+		return null;
+	}
+
+	/**
+	 * Programmatically selects the page with the given ID. Does nothing if the ID is not found.
+	 *
+	 * @param id
+	 *            the page identifier
+	 */
+	public void selectPage(String id) {
+		for (int i = 0; i < pages.size(); i++) {
+			if (pages.get(i).getId().equals(id)) {
 				sidebarList.setSelectedIndex(i);
 				return;
 			}
 		}
 	}
 
+	// ── Factory methods ──────────────────────────────────────────────────────
+
+	/**
+	 * Creates a settings panel with all four built-in pages (Launcher, Java, Extensions, Updates) plus any
+	 * extension-registered pages from {@link Settings#getSettingsPages()}.
+	 *
+	 * @param settings
+	 *            the application settings instance
+	 * @return a fully configured settings panel
+	 */
+	public static SettingsPanel createDefault(Settings settings) {
+		SettingsPanel panel = new SettingsPanel();
+		panel.addPage(new LauncherSettingsPanel(settings.getLauncher()));
+		panel.addPage(new JavaSettingsPanel(settings.getJavaManager()));
+		panel.addPage(new ExtensionSettingsPanel(settings.getExtensions()));
+		panel.addPage(new UpdateSettingsPanel(settings.getLauncher(), settings.getReleaseSource()));
+		for (SettingsPage page : settings.getSettingsPages()) {
+			panel.addPage(page);
+		}
+		return panel;
+	}
+
 	// ── Internals ─────────────────────────────────────────────────────────────
 
 	private static final class SectionEntry {
 
-		final String id;
-		final String label;
+		final SettingsPage page;
 
-		SectionEntry(String id, String label) {
-			this.id = id;
-			this.label = label;
+		SectionEntry(SettingsPage page) {
+			this.page = page;
 		}
 
 		@Override
 		public String toString() {
-			return label;
+			return page.getSidebarLabel();
 		}
 
 	}

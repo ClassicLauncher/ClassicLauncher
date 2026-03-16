@@ -14,11 +14,7 @@ import net.classiclauncher.launcher.game.Game;
 import net.classiclauncher.launcher.settings.LauncherStyle;
 import net.classiclauncher.launcher.settings.Settings;
 import net.classiclauncher.launcher.ui.font.LauncherFontDefaults;
-import net.classiclauncher.launcher.ui.settings.ExtensionSettingsPanel;
-import net.classiclauncher.launcher.ui.settings.JavaSettingsPanel;
-import net.classiclauncher.launcher.ui.settings.LauncherSettingsPanel;
 import net.classiclauncher.launcher.ui.settings.SettingsPanel;
-import net.classiclauncher.launcher.ui.update.UpdateSettingsPanel;
 import net.classiclauncher.launcher.v1_1.tabs.LauncherLogTab;
 import net.classiclauncher.launcher.v1_1.tabs.ProfileEditorTab;
 import net.classiclauncher.launcher.v1_1.tabs.UpdateNotesTab;
@@ -111,12 +107,7 @@ public class LauncherV1_1 {
 		LauncherLogTab launcherLogTab = new LauncherLogTab();
 		profileEditorTab = new ProfileEditorTab();
 
-		SettingsPanel settingsPanel = new SettingsPanel();
-		settingsPanel.addSection("Launcher", new LauncherSettingsPanel(settings.getLauncher()));
-		settingsPanel.addSection("Java", new JavaSettingsPanel(settings.getJavaManager()));
-		settingsPanel.addSection("Extensions", new ExtensionSettingsPanel(settings.getExtensions()));
-		settingsPanel.addSection("Updates",
-				new UpdateSettingsPanel(settings.getLauncher(), settings.getReleaseSource()));
+		SettingsPanel settingsPanel = SettingsPanel.createDefault(settings);
 
 		JTabbedPane tabbedPane = new JTabbedPane();
 		// Remove the content-area border/insets that Swing (including macOS Aqua) adds around

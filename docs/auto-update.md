@@ -36,14 +36,14 @@ The update system is split into three packages for modularity:
 | `GitHubReleasesClient` | HTTP-only layer; `GET /repos/{owner}/{repo}/releases`; redirect-following, 10 MiB cap, timeouts |
 | `GitHubJsonParser` | Package-private, dependency-free single-pass JSON scanner; filters drafts and pre-releases |
 
-### UI — `net.classiclauncher.launcher.ui.update`
+### UI — `net.classiclauncher.launcher.ui.update` and `net.classiclauncher.launcher.ui.settings`
 
-| Class | Responsibility |
-|---|---|
-| `UpdateDialog` | 700×500 modal dialog; CommonMark changelogs; version titles link to the GitHub release page |
-| `SplitInstallButton` | Main "Install" button + dropdown arrow for per-version selection |
-| `UpdateDownloadDialog` | Progress dialog with label, progress bar, and 60 ms EDT throttle |
-| `UpdateSettingsPanel` | Settings section: enable/disable toggle, skipped-version display, "Check Now" button; accepts a `ReleaseSource` |
+| Class | Package | Responsibility |
+|---|---|---|
+| `UpdateDialog` | `ui.update` | 700×500 modal dialog; CommonMark changelogs; version titles link to the GitHub release page |
+| `SplitInstallButton` | `ui.update` | Main "Install" button + dropdown arrow for per-version selection |
+| `UpdateDownloadDialog` | `ui.update` | Progress dialog with label, progress bar, and 60 ms EDT throttle |
+| `UpdateSettingsPanel` | `ui.settings` | Settings page (extends `SettingsPage`): enable/disable toggle, skipped-version display, "Check Now" footer button; accepts a `ReleaseSource` |
 
 ---
 

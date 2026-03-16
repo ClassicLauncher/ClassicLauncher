@@ -175,6 +175,7 @@ public class MyExtension implements LauncherExtension {
 
 ### What you can do in onLoad
 
+- Register custom settings pages via `settings.addSettingsPage(myPage)` (see "Custom Settings Pages" below)
 - Register account providers via `Accounts.onReady`
 - Register account types in the `AccountType` registry for introspection:
   ```java
@@ -275,6 +276,49 @@ public class MyAccountProvider extends AccountProvider {
 
 See [`account-providers.md`](account-providers.md) and [`api-integration.md`](api-integration.md)
 for full details.
+
+---
+
+## Custom Settings Pages
+
+Extensions can contribute their own pages to the settings panel by extending `SettingsPage` and
+registering them in `onLoad`:
+
+```java
+@Override
+public void onLoad(Settings settings) {
+    settings.addSettingsPage(new MyExtensionSettingsPage());
+}
+```
+
+The page appears in the sidebar alongside the built-in pages, ordered by priority (default 100
+for extension-registered pages). Each page gets the standard header/body/footer layout
+automatically via `buildPage(PageLayout)`.
+
+```java
+public class MyExtensionSettingsPage extends SettingsPage {
+
+    public MyExtensionSettingsPage() {
+        super("my-ext-settings", "My Extension", 100);
+        JPanel body = new JPanel();
+        // ... build your settings UI ...
+        buildPage(new PageLayout()
+                .title("My Extension Settings")
+                .body(body)
+                .footerAction(new JButton("Save")));
+    }
+}
+```
+
+### Built-in page priorities
+
+| Page | Priority | ID |
+|------|----------|----|
+| Launcher | 10 | `launcher` |
+| Java | 20 | `java` |
+| Extensions | 30 | `extensions` |
+| Updates | 40 | `updates` |
+| Extension-registered | 100 (suggested) | custom |
 
 ---
 

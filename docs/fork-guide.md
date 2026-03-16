@@ -296,7 +296,8 @@ This value is filtered into `launcher-version.properties` at build time and read
 config.addDefault("update.check-enabled", false);
 ```
 
-Users can also toggle it from **Settings → Updates** without rebuilding.
+Users can also toggle it from **Settings → Updates** (`UpdateSettingsPanel` in the
+`ui.settings` package) without rebuilding.
 
 **Asset naming convention** — `ArtifactSelector` picks the right download based on the file
 extension. Name your release assets accordingly:

@@ -1,5 +1,7 @@
 package net.classiclauncher.launcher.settings;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,6 +11,7 @@ import net.classiclauncher.launcher.account.Accounts;
 import net.classiclauncher.launcher.extension.Extensions;
 import net.classiclauncher.launcher.jre.JavaManager;
 import net.classiclauncher.launcher.profile.Profiles;
+import net.classiclauncher.launcher.ui.settings.SettingsPage;
 import net.classiclauncher.launcher.update.ReleaseSource;
 
 public class Settings {
@@ -16,7 +19,7 @@ public class Settings {
 	/**
 	 * Well-known source ID for the launcher's own update checks. Set by {@code Main.java} during startup; used by
 	 * {@link net.classiclauncher.launcher.update.UpdateChecker} and
-	 * {@link net.classiclauncher.launcher.ui.update.UpdateSettingsPanel}.
+	 * {@link net.classiclauncher.launcher.ui.settings.UpdateSettingsPanel}.
 	 */
 	public static final String LAUNCHER_SOURCE_ID = "launcher";
 
@@ -34,6 +37,7 @@ public class Settings {
 	private final Extensions extensions;
 
 	private final ConcurrentHashMap<String, ReleaseSource> releaseSources = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<String, SettingsPage> settingsPages = new ConcurrentHashMap<>();
 
 	private Settings() {
 		launcherSettings = new LauncherSettings();
@@ -157,6 +161,55 @@ public class Settings {
 	 */
 	public Map<String, ReleaseSource> getReleaseSources() {
 		return Collections.unmodifiableMap(releaseSources);
+	}
+
+	// ── Settings pages ──────────────────────────────────────────────────────
+
+	/**
+	 * Registers a custom settings page. Extensions can call this in {@code onLoad(Settings)} to contribute pages to the
+	 * settings panel. If a page with the same ID already exists, it is replaced.
+	 *
+	 * @param page
+	 *            the settings page to register; must not be {@code null}
+	 * @throws IllegalArgumentException
+	 *             if {@code page} is {@code null}
+	 */
+	public void addSettingsPage(SettingsPage page) {
+		if (page == null) throw new IllegalArgumentException("Settings page must not be null");
+		settingsPages.put(page.getId(), page);
+	}
+
+	/**
+	 * Removes a custom settings page by ID.
+	 *
+	 * @param id
+	 *            the page identifier
+	 * @return the removed page, or {@code null} if no page was registered under that ID
+	 */
+	public SettingsPage removeSettingsPage(String id) {
+		if (id == null) return null;
+		return settingsPages.remove(id);
+	}
+
+	/**
+	 * Returns the settings page registered under the given ID, or {@code null} if none exists.
+	 *
+	 * @param id
+	 *            the page identifier
+	 * @return the page, or {@code null}
+	 */
+	public SettingsPage getSettingsPage(String id) {
+		if (id == null) return null;
+		return settingsPages.get(id);
+	}
+
+	/**
+	 * Returns all registered custom settings pages as an unmodifiable collection.
+	 *
+	 * @return collection of all registered pages
+	 */
+	public Collection<SettingsPage> getSettingsPages() {
+		return Collections.unmodifiableCollection(new ArrayList<>(settingsPages.values()));
 	}
 
 }
