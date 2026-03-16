@@ -193,9 +193,15 @@ public List<Game> getGames() {
 
 The launcher calls `Game.resolve()` to obtain the active game:
 
-1. Calls `provider.getPrimaryGame()` on the currently selected account's provider.
-2. Falls back to `LauncherContext.getInstance().getDefaultGame()`.
-3. Returns `null` if neither is set (Profile Editor uses three built-in filters, Java section shown).
+1. If the `LauncherContext.getDefaultGame()` is supported by the selected account's provider, return
+   it. This respects the user's explicit game selection in the login screen.
+2. Otherwise, the account's `provider.getPrimaryGame()` if non-null.
+3. Falls back to `LauncherContext.getInstance().getDefaultGame()` if set.
+4. Returns `null` if none are configured (Profile Editor uses three built-in filters, Java section
+   shown).
+
+Two `Game` objects are considered equal when they share the same `gameId` (via `equals`/`hashCode`),
+so `List.contains()` checks work correctly even when providers recreate their game lists.
 
 When a game becomes active the launcher calls both `game.onSelected(style)` (the callback
 registered on the `Game` itself — see "Selection callback" above) and
@@ -205,16 +211,22 @@ See [`account-providers.md`](account-providers.md) for the provider-side hook.
 
 ---
 
-## Launcher-wide default
+## Launcher-wide default and persistence
 
-If all providers share the same `Game`, set it once on the `LauncherContext`:
+The user's game and provider selection is persisted in `settings.yml` as `default-game` (game ID)
+and `default-provider` (provider type ID). Call `setDefaultGame` / `setDefaultProviderTypeId` on
+`LauncherContext` — both auto-persist to `LauncherSettings`:
 
 ```java
-LauncherContext.getInstance().setDefaultGame(
-        Game.builder("my-game", "My Game", ExecutableType.JAR)
-                .apiFactory(MyVersionApi::new)
-                .build());
+LauncherContext ctx = LauncherContext.getInstance();
+ctx.setDefaultGame(game);                          // persists game ID
+ctx.setDefaultProviderTypeId(provider.getTypeId()); // persists provider type ID
 ```
+
+On startup, after extensions are loaded and providers are registered, `Main` calls
+`LauncherContext.getInstance().restoreDefaultGame()` to resolve the persisted IDs back to live
+`Game` / provider objects. The restore scans the saved provider first, then falls back to any
+provider that offers the saved game ID.
 
 ---
 

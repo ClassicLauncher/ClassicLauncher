@@ -149,6 +149,11 @@ public class Main {
 		// accounts use the extension implementations (e.g. MicrosoftAccount with refresh token).
 		settings.getAccounts().load();
 
+		// ── 10c. Restore default game from persisted settings ─────────────────
+		// All providers and their games are now registered; restore the user's last
+		// game+provider selection so Game.resolve() returns the right game immediately.
+		LauncherContext.getInstance().restoreDefaultGame();
+
 		// ── 11. Launch UI + drain pending URI ─────────────────────────────────
 		LauncherStyle style = settings.getLauncher().getStyle();
 		List<String> extIssues = settings.getExtensions().getLoadIssues();

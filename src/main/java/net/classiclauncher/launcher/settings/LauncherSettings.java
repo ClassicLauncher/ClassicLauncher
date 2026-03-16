@@ -14,6 +14,8 @@ public class LauncherSettings {
 		config.addDefault("selected-profile", "");
 		config.addDefault("update.check-enabled", true);
 		config.addDefault("update.skipped-version", "");
+		config.addDefault("default-game", "");
+		config.addDefault("default-provider", "");
 		config.generateConfigs();
 	}
 
@@ -71,6 +73,32 @@ public class LauncherSettings {
 
 	public void setSkippedVersion(String version) {
 		config.set("update.skipped-version", version != null ? version : "");
+		config.save();
+	}
+
+	/**
+	 * Returns the persisted default game ID, or {@code null} if none has been saved.
+	 */
+	public String getDefaultGameId() {
+		String id = config.getString("default-game", "");
+		return (id == null || id.isEmpty()) ? null : id;
+	}
+
+	public void setDefaultGameId(String gameId) {
+		config.set("default-game", gameId != null ? gameId : "");
+		config.save();
+	}
+
+	/**
+	 * Returns the persisted default provider type ID, or {@code null} if none has been saved.
+	 */
+	public String getDefaultProviderTypeId() {
+		String id = config.getString("default-provider", "");
+		return (id == null || id.isEmpty()) ? null : id;
+	}
+
+	public void setDefaultProviderTypeId(String providerTypeId) {
+		config.set("default-provider", providerTypeId != null ? providerTypeId : "");
 		config.save();
 	}
 

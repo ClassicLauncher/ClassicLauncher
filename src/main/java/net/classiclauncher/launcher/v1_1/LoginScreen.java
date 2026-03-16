@@ -318,6 +318,7 @@ public class LoginScreen extends BackgroundPanel {
 					GameSelectorWidget.chooseGame(this, provider, game -> {
 						if (game != null) {
 							LauncherContext.getInstance().setDefaultGame(game);
+							LauncherContext.getInstance().setDefaultProviderTypeId(provider.getTypeId());
 						}
 						onLoginComplete.run();
 					});
@@ -325,6 +326,7 @@ public class LoginScreen extends BackgroundPanel {
 			} else {
 				if (provider != null && !provider.getGames().isEmpty()) {
 					LauncherContext.getInstance().setDefaultGame(provider.getGames().get(0));
+					LauncherContext.getInstance().setDefaultProviderTypeId(provider.getTypeId());
 				}
 				onLoginComplete.run();
 			}
@@ -441,6 +443,7 @@ public class LoginScreen extends BackgroundPanel {
 				GameSelectorWidget.chooseGame(this, provider, game -> {
 					if (game != null) {
 						LauncherContext.getInstance().setDefaultGame(game);
+						LauncherContext.getInstance().setDefaultProviderTypeId(provider.getTypeId());
 					}
 					createDefaultProfileIfNeeded(account, game);
 					onLoginComplete.run();
@@ -450,6 +453,9 @@ public class LoginScreen extends BackgroundPanel {
 			Game game = resolveCurrentGame();
 			if (game != null) {
 				LauncherContext.getInstance().setDefaultGame(game);
+				if (provider != null) {
+					LauncherContext.getInstance().setDefaultProviderTypeId(provider.getTypeId());
+				}
 			}
 			createDefaultProfileIfNeeded(account, game);
 			onLoginComplete.run();
