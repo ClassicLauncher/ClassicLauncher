@@ -381,7 +381,7 @@ public class GameSelectorWidget extends JPanel {
 		overlay.setOpaque(false);
 
 		// ── Gear button — created once; floats at top-right of popover ─────────
-		IconButton gearBtn = new IconButton("\u2699", "Settings").withSize(24, 16);
+		IconButton gearBtn = new IconButton(new GearIcon(14), "Settings").withSize(24, 16);
 		gearBtn.addActionListener(e -> {
 			closePopover();
 			openSettingsDialog();
