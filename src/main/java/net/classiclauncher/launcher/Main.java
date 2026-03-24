@@ -42,7 +42,7 @@ public class Main {
 	/**
 	 * The logical name of this launcher installation. Determines data-dir, IPC port, etc.
 	 */
-	private static final String LAUNCHER_NAME = "launcher";
+	private static final String LAUNCHER_NAME = "classiclauncher";
 
 	// Held as a field so handleUri() can reach the Extensions instance without a static reference.
 	private static Extensions extensionsRef;
