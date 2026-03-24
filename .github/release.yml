@@ -1,5 +1,8 @@
 changelog:
   categories:
+    - title: "Breaking Changes"
+      labels:
+        - breaking
     - title: "New Features"
       labels:
         - enhancement
@@ -15,6 +18,7 @@ changelog:
     - title: "Maintenance"
       labels:
         - dependencies
+        - maintenance
     - title: "Other Changes"
       labels:
         - "*"
