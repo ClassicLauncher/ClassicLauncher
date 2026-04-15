@@ -4,7 +4,6 @@ import java.awt.Window;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -143,17 +142,12 @@ public class UpdateChecker {
 		}
 
 		// Sort ascending (oldest first) so changelogs read chronologically
-		Collections.sort(newerReleases, new Comparator<ReleaseInfo>() {
-
-			@Override
-			public int compare(ReleaseInfo a, ReleaseInfo b) {
-				String va = a.getTagName();
-				String vb = b.getTagName();
-				if (va.startsWith("v")) va = va.substring(1);
-				if (vb.startsWith("v")) vb = vb.substring(1);
-				return LauncherVersion.compare(va, vb);
-			}
-
+		newerReleases.sort((a, b) -> {
+			String va = a.getTagName();
+			String vb = b.getTagName();
+			if (va.startsWith("v")) va = va.substring(1);
+			if (vb.startsWith("v")) vb = vb.substring(1);
+			return LauncherVersion.compare(va, vb);
 		});
 
 		if (newerReleases.isEmpty()) return new UpdatePlan(current, Collections.<ReleaseInfo>emptyList());
