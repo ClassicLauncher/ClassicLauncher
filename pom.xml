@@ -62,7 +62,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.44</version>
+			<version>1.18.46</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -83,7 +83,7 @@
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
-			<version>5.14.3</version>
+			<version>5.14.4</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -164,7 +164,7 @@
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
-							<version>1.18.44</version>
+							<version>1.18.46</version>
 						</path>
 					</annotationProcessorPaths>
 					<compilerArgs>
